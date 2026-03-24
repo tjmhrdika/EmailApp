@@ -23,12 +23,12 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddHttpContextAccessor();
-// builder.Services.AddHttpClient("ServerAPI", client =>
-// {
-//     client.BaseAddress = new Uri("http://localhost:5146");
-// });
-// builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ServerAPI"));
-// builder.Services.AddControllers();
+builder.Services.AddHttpClient("ServerAPI", client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5146");
+});
+builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ServerAPI"));
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -50,6 +50,6 @@ app.UseAuthorization();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-// app.MapControllers();
+app.MapControllers();
 
 app.Run();

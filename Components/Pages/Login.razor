@@ -1,9 +1,6 @@
 @page "/"
-@inject IHttpContextAccessor HttpContextAccessor
+@inject HttpClient Http
 @inject NavigationManager NavigationManager
-@using System.Security.Claims
-@using Microsoft.AspNetCore.Authentication
-@using Microsoft.AspNetCore.Authentication.Cookies
 
 <div class="d-flex justify-content-center align-items-center vh-100">
     <AuthorizeView>
@@ -47,32 +44,16 @@
     User user = new User();
     async Task LoginUser()
     {
-        User? checkUser = db.Users.FirstOrDefault(u => u.Username == user.Username);
-    
-        if (checkUser != null && BCrypt.Net.BCrypt.Verify(user.Password, checkUser.Password))
+        HttpResponseMessage? response = await Http.PostAsJsonAsync("api/auth/login", user);
+        if (response.IsSuccessStatusCode)
         {
-            List<Claim>? claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, checkUser.Username),
-                new Claim(ClaimTypes.Role, checkUser.IsAdmin ? "Admin" : "User")
-            };
-    
-            ClaimsIdentity? identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            ClaimsPrincipal? principal = new ClaimsPrincipal(identity);
-    
-            await HttpContextAccessor.HttpContext!.SignInAsync(
-                CookieAuthenticationDefaults.AuthenticationScheme,
-                principal);
-    
             NavigationManager.NavigateTo("/", true);
         }
     }
 
     async Task Logout()
     {
-        await HttpContextAccessor.HttpContext!.SignOutAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme);
-
+        await Http.PostAsync("api/auth/logout", null);
         NavigationManager.NavigateTo("/", true);
     }
 }
