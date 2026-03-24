@@ -1,0 +1,49 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="EmailApp.styles.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <HeadOutlet />
+</head>
+
+<body>
+    <CascadingAuthenticationState>
+        <Router AppAssembly="@typeof(App).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(EmailApp.Components.Layout.MainLayout)">
+                    <NotAuthorized>
+                        <AuthorizeView>
+                            <NotAuthorized Context="authState">
+                                <!-- NOT LOGGED IN -->
+                                <p>
+                                    You are not authorized. Please 
+                                    <a href="/">login</a>.
+                                </p>
+                            </NotAuthorized>
+
+                            <Authorized Context="authState">
+                                <!-- LOGGED IN BUT NO PERMISSION -->
+                                <p>
+                                    This page is not accessible for your role.
+                                </p>
+                            </Authorized>
+                        </AuthorizeView>
+                    </NotAuthorized>
+                </AuthorizeRouteView>
+            </Found>
+            <NotFound>
+                <p>Not found</p>
+            </NotFound>
+        </Router>
+    </CascadingAuthenticationState>
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

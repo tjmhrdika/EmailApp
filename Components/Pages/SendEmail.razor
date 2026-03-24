@@ -1,0 +1,73 @@
+@page "/send-email/{UserId:int}"
+@inject AppDbContext db
+@rendermode InteractiveServer
+@using System.Net;
+@using System.Net.Mail;
+
+<h3>Send Email</h3>
+
+@* <p>Sending to: <b>@selectedUser?.Email</b></p>
+
+<textarea @bind="text"></textarea>
+
+<button @onclick="SendEmailF">Send</button>
+
+<p>@message</p>
+
+@code {
+    [Parameter]
+    public int UserId { get; set; }
+
+    User? selectedUser;
+    string text = default!;
+    string message = default!;
+
+    protected override void OnInitialized()
+    {
+        selectedUser = db.Users.Find(UserId);
+    }
+
+    void SendEmailF()
+    {
+        if(selectedUser != null)
+        {
+            try
+            {
+                var smtp = new SmtpClient("smtp.gmail.com")
+                {
+                    Port = 587,
+                    Credentials = new NetworkCredential(
+                        "cpif2023@gmail.com",
+                        "vdvutfsbssxozmpb"
+                    ),
+                    EnableSsl = true
+                };
+
+                var mail = new MailMessage
+                {
+                    From = new MailAddress("cpif2023@gmail.com"),
+                    Subject = "Test Email",
+                    Body = text,
+                };
+
+                mail.To.Add(new MailAddress(selectedUser.Email));
+
+                smtp.Send(mail);
+
+                db.Emails.Add(new Email
+                {
+                    Text = text,
+                    UserId = selectedUser.Id
+                });
+
+                db.SaveChanges();
+
+                message = "Email sent!";
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+            }
+        }
+    }
+} *@

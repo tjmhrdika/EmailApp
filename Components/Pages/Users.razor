@@ -1,0 +1,94 @@
+@page "/users"
+@inject AppDbContext db
+@rendermode InteractiveServer
+
+<EditForm Model="user" OnValidSubmit="AddUser" class="card p-4 shadow-sm mb-4">
+    <DataAnnotationsValidator />
+    <h4 class="mb-3">Add User</h4>
+    <div class="row">
+        <div class="col-4">
+            <label class="form-label">Username</label>
+            <InputText @bind-Value="user.Username" class="form-control" />
+            <ValidationMessage For="@(() => user.Username)" class="text-danger" />
+            <p class="text danger">@message</p>
+        </div>
+
+        <div class="col-4">
+            <label class="form-label">Password</label>
+            <InputText @bind-Value="user.Password" type="password" class="form-control" />
+            <ValidationMessage For="@(() => user.Password)" class="text-danger" />
+        </div>
+
+        <div class="form-check col-2 d-flex align-items-center justify-content-center">
+            <InputCheckbox @bind-Value="user.IsAdmin" class="form-check-input me-2" />
+            <label class="form-check-label">
+                Is Admin
+            </label>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-center col-2">
+            <button type="submit"
+                    class="btn btn-primary"
+                    style="width: 50px; height: 50px;">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+        </div>
+    </div>
+</EditForm>
+
+<h3 class="mb-3">Users</h3>
+
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+    @foreach (User u in users)
+    {
+        <div class="col">
+            <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
+                <span>@u.Username</span>
+                @if(u.Username != "user")
+                {
+                    <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center"
+                            @onclick="() => DeleteUser(u.Id)">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                }                
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    User user = new User();
+    string message = String.Empty;
+    List<User> users = new List<User>();
+
+    protected override void OnInitialized()
+    {
+        users = db.Users.ToList();
+    }
+    
+    async Task AddUser()
+    {
+        bool exists = db.Users.Any(u => u.Username == user.Username);
+        if (exists)
+        {
+            message = "Username already exists";
+            return;
+        }
+        user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+        message = String.Empty;
+        await db.Users.AddAsync(user);
+        await db.SaveChangesAsync();
+        user = new User();
+        users = db.Users.ToList();
+    }
+
+    async Task DeleteUser(Guid id)
+    {
+        User? user = db.Users.Find(id);
+        if(user != null){
+            db.Users.Remove(user);
+            await db.SaveChangesAsync();
+        }
+        users = db.Users.ToList();
+    }
+}

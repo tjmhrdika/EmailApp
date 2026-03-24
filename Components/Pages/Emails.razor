@@ -1,0 +1,113 @@
+@page "/emails"
+@inject AppDbContext db
+@rendermode InteractiveServer
+
+<EditForm Model="email" OnValidSubmit="AddEmail" class="card p-4 shadow-sm mb-4" style="max-width: 500px; width: 100%;">
+    <DataAnnotationsValidator />
+    <h4 class="mb-3">Add Email</h4>
+    <div class="row">
+        <div class="col-10">
+            <label class="form-label">Address</label>
+            <InputText @bind-Value="email.Address" class="form-control" />
+            <ValidationMessage For="@(() => email.Address)" class="text-danger" />
+            <p class="text danger">@message</p>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-center col-2">
+            <button type="submit"
+                    class="btn btn-primary"
+                    style="width: 50px; height: 50px;">
+                <i class="bi bi-plus-lg"></i>
+            </button>
+        </div>
+    </div>
+</EditForm>
+
+<h3 class="mb-3">Emails</h3>
+
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
+    @foreach (Email e in emails)
+    {
+        <div class="col">
+            <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
+                <span>@e.Address</span>
+                <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center"
+                        @onclick="() => DeleteEmail(e.Id)">
+                    <i class="bi bi-trash"></i>
+                </button>               
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    Email email = new Email();
+    string message = String.Empty;
+    List<Email> emails = new List<Email>();
+
+    protected override void OnInitialized()
+    {
+        emails = db.Emails.ToList();
+    }
+    
+    async Task AddEmail()
+    {
+        bool exists = db.Emails.Any(e => e.Address == email.Address);
+        if (exists)
+        {
+            message = "Email already exists";
+            return;
+        }
+        message = String.Empty;
+        await db.Emails.AddAsync(email);
+        await db.SaveChangesAsync();
+        email = new Email();
+        emails = db.Emails.ToList();
+    }
+
+    async Task DeleteEmail(Guid id)
+    {
+        Email? email = db.Emails.Find(id);
+        if(email != null){
+            db.Emails.Remove(email);
+            await db.SaveChangesAsync();
+        }
+        emails = db.Emails.ToList();
+    }
+}
+
+@* @page "/emails"
+@inject AppDbContext db
+@rendermode InteractiveServer
+
+<h3>Sent Emails</h3>
+
+<ul>
+@foreach (var email in emails)
+{
+    <li>
+        @email.Text (UserId: @email.UserId)
+        <button @onclick="() => DeleteEmail(email.Id)">Delete</button>
+    </li>
+}
+</ul>
+
+@code {
+    List<Email> emails = default!;
+
+    protected override void OnInitialized()
+    {
+        emails = db.Emails.ToList();
+    }
+
+    void DeleteEmail(int id)
+    {
+        var email = db.Emails.Find(id);
+        if(email != null)
+        {
+            db.Emails.Remove(email);
+            db.SaveChanges();
+        }
+        emails = db.Emails.ToList();
+    }
+} *@
