@@ -135,3 +135,4 @@ C:\Agatos\EmailApp\obj\Debug\net8.0\EmailApp.genruntimeconfig.cache
 C:\Agatos\EmailApp\obj\Debug\net8.0\ref\EmailApp.dll
 C:\Agatos\EmailApp\bin\Debug\net8.0\BCrypt.Net-Next.dll
 C:\Agatos\EmailApp\obj\Debug\net8.0\EmailApp.sourcelink.json
+C:\Agatos\EmailApp\bin\Debug\net8.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll

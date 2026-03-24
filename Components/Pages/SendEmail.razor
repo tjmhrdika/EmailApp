@@ -1,6 +1,8 @@
 @page "/send-email"
-@using System.Net;
-@using System.Net.Mail;
+@using System.Net
+@using System.Net.Mail
+@using System.IdentityModel.Tokens.Jwt
+@using System.Security.Claims
 
 @if (!string.IsNullOrEmpty(alertMessage))
 {
@@ -34,6 +36,27 @@
     string text = String.Empty;
     string alertMessage = String.Empty;
     string alertType = String.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+            JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+            string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (role != "Admin")
+            {
+                NavigationManager.NavigateTo("/");
+            }
+        }
+    }
 
     void Send()
     {

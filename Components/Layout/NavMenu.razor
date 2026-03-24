@@ -1,4 +1,7 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+﻿@using System.IdentityModel.Tokens.Jwt
+@using System.Security.Claims
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">EmailApp</a>
     </div>
@@ -14,25 +17,28 @@
             </NavLink>
         </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="users">
-                Users
-            </NavLink>
-        </div>
+        @if (isAdmin) 
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="users">
+                    <span class="bi bi-person-fill fs-4 d-flex align-items-center" aria-hidden="true"></span> Users
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="login">
-                Login
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="emails">
+                    <span class="bi bi-at fs-4 d-flex align-items-center" aria-hidden="true"></span> Emails
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="emails">
-                Emails
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="send-email">
+                    <span class="bi bi-envelope fs-4 d-flex align-items-center" aria-hidden="true"></span> Send Email
+                </NavLink>
+            </div>
+        }
 
-        <div class="nav-item px-3">
+        @* <div class="nav-item px-3">
             <NavLink class="nav-link" href="counter">
                 <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
             </NavLink>
@@ -42,7 +48,31 @@
             <NavLink class="nav-link" href="weather">
                 <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
             </NavLink>
-        </div>
+        </div> *@
     </nav>
 </div>
 
+@code {
+    bool isAdmin = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                return;
+            }
+
+            JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+            JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+            string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (role == "Admin")
+            {
+                isAdmin = true;
+                StateHasChanged();
+            }
+        }
+    }
+}

@@ -1,5 +1,12 @@
 ﻿<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>
+
+@* <Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
             <NotAuthorized>
                 <AuthorizeView>
@@ -20,12 +27,5 @@
                 </AuthorizeView>
             </NotAuthorized>
         </AuthorizeRouteView>
-    </Found>
-</Router>
-
-@* <Router AppAssembly="typeof(Program).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
 </Router> *@

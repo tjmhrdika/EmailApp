@@ -1,4 +1,6 @@
 @page "/users"
+@using System.IdentityModel.Tokens.Jwt
+@using System.Security.Claims
 
 <EditForm Model="user" OnValidSubmit="AddUser" class="card p-4 shadow-sm mb-4">
     <DataAnnotationsValidator />
@@ -8,7 +10,7 @@
             <label class="form-label">Username</label>
             <InputText @bind-Value="user.Username" class="form-control" />
             <ValidationMessage For="@(() => user.Username)" class="text-danger" />
-            <p class="text danger">@message</p>
+            <p class="text-danger">@message</p>
         </div>
 
         <div class="col-4">
@@ -59,6 +61,27 @@
     User user = new User();
     string message = String.Empty;
     List<User> users = new List<User>();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+            JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+            string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (role != "Admin")
+            {
+                NavigationManager.NavigateTo("/");
+            }
+        }
+    }
 
     protected override void OnInitialized()
     {
