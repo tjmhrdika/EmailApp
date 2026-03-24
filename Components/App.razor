@@ -15,33 +15,7 @@
 
 <body>
     <CascadingAuthenticationState>
-        <Router AppAssembly="@typeof(App).Assembly">
-            <Found Context="routeData">
-                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(EmailApp.Components.Layout.MainLayout)">
-                    <NotAuthorized>
-                        <AuthorizeView>
-                            <NotAuthorized Context="authState">
-                                <!-- NOT LOGGED IN -->
-                                <p>
-                                    You are not authorized. Please 
-                                    <a href="/">login</a>.
-                                </p>
-                            </NotAuthorized>
-
-                            <Authorized Context="authState">
-                                <!-- LOGGED IN BUT NO PERMISSION -->
-                                <p>
-                                    This page is not accessible for your role.
-                                </p>
-                            </Authorized>
-                        </AuthorizeView>
-                    </NotAuthorized>
-                </AuthorizeRouteView>
-            </Found>
-            <NotFound>
-                <p>Not found</p>
-            </NotFound>
-        </Router>
+        <Routes @rendermode="InteractiveServer" />
     </CascadingAuthenticationState>
     <script src="_framework/blazor.web.js"></script>
 </body>

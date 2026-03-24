@@ -33,6 +33,7 @@ public class AuthController : Controller
             await HttpContext.SignInAsync(
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 principal);
+            Console.WriteLine("Signed in!");
             return Ok();
         }
         else

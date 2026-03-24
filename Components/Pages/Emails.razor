@@ -1,23 +1,22 @@
 @page "/emails"
-@inject AppDbContext db
-@rendermode InteractiveServer
 
 <EditForm Model="email" OnValidSubmit="AddEmail" class="card p-4 shadow-sm mb-4" style="max-width: 500px; width: 100%;">
     <DataAnnotationsValidator />
     <h4 class="mb-3">Add Email</h4>
     <div class="row">
-        <div class="col-10">
+        <div class="col-9">
             <label class="form-label">Address</label>
             <InputText @bind-Value="email.Address" class="form-control" />
             <ValidationMessage For="@(() => email.Address)" class="text-danger" />
             <p class="text danger">@message</p>
         </div>
 
-        <div class="d-flex align-items-center justify-content-center col-2">
+        <div class="d-flex align-items-center justify-content-center col">
             <button type="submit"
                     class="btn btn-primary"
-                    style="width: 50px; height: 50px;">
+                    style="height: 50px;">
                 <i class="bi bi-plus-lg"></i>
+                Add
             </button>
         </div>
     </div>
@@ -30,10 +29,18 @@
     {
         <div class="col">
             <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
-                <span>@e.Address</span>
-                <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center"
-                        @onclick="() => DeleteEmail(e.Id)">
-                    <i class="bi bi-trash"></i>
+
+                <InputText @bind-Value="e.Address" class="form-control me-2"
+                           disabled="@(e.Id != editingEmailId)" />
+
+                <button class="btn btn-primary btn-sm me-2"
+                        @onclick="() => ToggleEdit(e)">
+                    <i class="bi @(e.Id == editingEmailId ? "bi-check-lg" : "bi-pencil")"></i>
+                </button>
+
+                <button class="btn btn-danger btn-sm"
+                        @onclick="() => DeleteOrCancel(e)">
+                    <i class="bi @(editingEmailId == e.Id ? "bi-x" : "bi-trash")"></i>
                 </button>               
             </div>
         </div>
@@ -44,6 +51,7 @@
     Email email = new Email();
     string message = String.Empty;
     List<Email> emails = new List<Email>();
+    Guid? editingEmailId = null;
 
     protected override void OnInitialized()
     {
@@ -65,49 +73,32 @@
         emails = db.Emails.ToList();
     }
 
-    async Task DeleteEmail(Guid id)
+    
+    async Task DeleteOrCancel(Email e)
     {
-        Email? email = db.Emails.Find(id);
-        if(email != null){
-            db.Emails.Remove(email);
-            await db.SaveChangesAsync();
-        }
-        emails = db.Emails.ToList();
-    }
-}
-
-@* @page "/emails"
-@inject AppDbContext db
-@rendermode InteractiveServer
-
-<h3>Sent Emails</h3>
-
-<ul>
-@foreach (var email in emails)
-{
-    <li>
-        @email.Text (UserId: @email.UserId)
-        <button @onclick="() => DeleteEmail(email.Id)">Delete</button>
-    </li>
-}
-</ul>
-
-@code {
-    List<Email> emails = default!;
-
-    protected override void OnInitialized()
-    {
-        emails = db.Emails.ToList();
-    }
-
-    void DeleteEmail(int id)
-    {
-        var email = db.Emails.Find(id);
-        if(email != null)
+        if(editingEmailId == e.Id)
         {
-            db.Emails.Remove(email);
-            db.SaveChanges();
+            editingEmailId = null;
         }
-        emails = db.Emails.ToList();
+        else
+        {
+            db.Emails.Remove(e);
+            await db.SaveChangesAsync();
+            emails = db.Emails.ToList();
+        }
     }
-} *@
+
+    async Task ToggleEdit(Email e)
+    {
+        if (editingEmailId == e.Id)
+        {
+            db.Emails.Update(e);
+            await db.SaveChangesAsync();
+            editingEmailId = null;
+        }
+        else
+        {
+            editingEmailId = e.Id;
+        }
+    }
+}

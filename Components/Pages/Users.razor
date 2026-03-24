@@ -1,6 +1,4 @@
 @page "/users"
-@inject AppDbContext db
-@rendermode InteractiveServer
 
 <EditForm Model="user" OnValidSubmit="AddUser" class="card p-4 shadow-sm mb-4">
     <DataAnnotationsValidator />
@@ -29,8 +27,9 @@
         <div class="d-flex align-items-center justify-content-center col-2">
             <button type="submit"
                     class="btn btn-primary"
-                    style="width: 50px; height: 50px;">
+                    style="height: 50px;">
                 <i class="bi bi-plus-lg"></i>
+                Add
             </button>
         </div>
     </div>
@@ -47,7 +46,7 @@
                 @if(u.Username != "user")
                 {
                     <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center"
-                            @onclick="() => DeleteUser(u.Id)">
+                            @onclick="() => DeleteUser(u)">
                         <i class="bi bi-trash"></i>
                     </button>
                 }                
@@ -82,13 +81,10 @@
         users = db.Users.ToList();
     }
 
-    async Task DeleteUser(Guid id)
+    async Task DeleteUser(User u)
     {
-        User? user = db.Users.Find(id);
-        if(user != null){
-            db.Users.Remove(user);
-            await db.SaveChangesAsync();
-        }
+        db.Users.Remove(u);
+        await db.SaveChangesAsync();
         users = db.Users.ToList();
     }
 }

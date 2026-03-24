@@ -1,6 +1,31 @@
 ﻿<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <AuthorizeView>
+                    <NotAuthorized Context="authState">
+                        <!-- NOT LOGGED IN -->
+                        <p>
+                            You are not authorized. Please 
+                            <a href="/">login</a>.
+                        </p>
+                    </NotAuthorized>
+
+                    <Authorized Context="authState">
+                        <!-- LOGGED IN BUT NO PERMISSION -->
+                        <p>
+                            This page is not accessible for your role.
+                        </p>
+                    </Authorized>
+                </AuthorizeView>
+            </NotAuthorized>
+        </AuthorizeRouteView>
+    </Found>
+</Router>
+
+@* <Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
-</Router>
+</Router> *@

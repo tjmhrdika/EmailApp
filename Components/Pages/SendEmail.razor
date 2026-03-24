@@ -1,73 +1,74 @@
-@page "/send-email/{UserId:int}"
-@inject AppDbContext db
-@rendermode InteractiveServer
+@page "/send-email"
 @using System.Net;
 @using System.Net.Mail;
 
-<h3>Send Email</h3>
+@if (!string.IsNullOrEmpty(alertMessage))
+{
+    <div class="alert alert-@alertType alert-dismissible fade show" role="alert">
+        @alertMessage
+        <button type="button" class="btn-close" @onclick="() => alertMessage = String.Empty"></button>
+    </div>
+}
 
-@* <p>Sending to: <b>@selectedUser?.Email</b></p>
+<div class="d-flex justify-content-center mt-5">
+    <div class="card shadow-sm p-4" style="max-width: 600px; width: 100%;">
+        
+        <h3 class="mb-3">Send Email</h3>
 
-<textarea @bind="text"></textarea>
+        <div class="mb-3">
+            <textarea @bind="text" class="form-control" rows="4" placeholder="Type your message..."></textarea>
+        </div>
 
-<button @onclick="SendEmailF">Send</button>
+        <div class="d-flex justify-content-end">
+            <button class="btn btn-primary d-flex align-items-center gap-2"
+                    @onclick="Send">
+                <i class="bi bi-send"></i>
+                Send
+            </button>
+        </div>
 
-<p>@message</p>
+    </div>
+</div>
 
 @code {
-    [Parameter]
-    public int UserId { get; set; }
+    string text = String.Empty;
+    string alertMessage = String.Empty;
+    string alertType = String.Empty;
 
-    User? selectedUser;
-    string text = default!;
-    string message = default!;
-
-    protected override void OnInitialized()
+    void Send()
     {
-        selectedUser = db.Users.Find(UserId);
-    }
-
-    void SendEmailF()
-    {
-        if(selectedUser != null)
+        try
         {
-            try
+            SmtpClient? smtp = new SmtpClient("smtp.gmail.com")
             {
-                var smtp = new SmtpClient("smtp.gmail.com")
-                {
-                    Port = 587,
-                    Credentials = new NetworkCredential(
-                        "cpif2023@gmail.com",
-                        "vdvutfsbssxozmpb"
-                    ),
-                    EnableSsl = true
-                };
+                Port = 587,
+                Credentials = new NetworkCredential(
+                    "cpif2023@gmail.com",
+                    "vdvutfsbssxozmpb"
+                ),
+                EnableSsl = true
+            };
 
-                var mail = new MailMessage
-                {
-                    From = new MailAddress("cpif2023@gmail.com"),
-                    Subject = "Test Email",
-                    Body = text,
-                };
-
-                mail.To.Add(new MailAddress(selectedUser.Email));
-
-                smtp.Send(mail);
-
-                db.Emails.Add(new Email
-                {
-                    Text = text,
-                    UserId = selectedUser.Id
-                });
-
-                db.SaveChanges();
-
-                message = "Email sent!";
-            }
-            catch (Exception ex)
+            MailMessage? mail = new MailMessage
             {
-                message = ex.Message;
-            }
+                From = new MailAddress("cpif2023@gmail.com"),
+                Subject = "Alarm Notification",
+                Body = text,
+            };
+
+            db.Emails
+                .Select(e => new MailAddress(e.Address))
+                .ToList()
+                .ForEach(addr => mail.Bcc.Add(addr));
+            
+            smtp.Send(mail);
+            alertMessage = "Email sent!";
+            alertType = "success";
+        }
+        catch (Exception ex)
+        {
+            alertMessage = ex.Message;
+            alertType = "danger";
         }
     }
-} *@
+}
