@@ -1,40 +1,55 @@
-@page "/"
+@page "/login"
 @inject HttpClient Http
 
 @if (isLoggedIn)
 {
-    <div class="d-flex justify-content-center align-items-center vh-100">
-        <div class="card p-4 shadow-sm text-center" style="max-width: 400px; width: 100%;">
-            <button class="btn btn-danger mt-3" @onclick="Logout">
-                Logout
-            </button>
-        </div>
-    </div>
+    NavigationManager.NavigateTo("/", true);
 }
 else
 {
-    <div class="d-flex justify-content-center align-items-center vh-100">
-        <EditForm Model="user" OnValidSubmit="LoginUser" class="card p-4 shadow-sm" style="max-width: 400px; width: 100%;"> 
-            <DataAnnotationsValidator />
+    <div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f3f6;padding:16px;">
+        <div style="background:#ffffff;border-radius:14px;border:1px solid #e8eaed;padding:36px 32px;width:100%;max-width:400px;">
 
-            <h3 class="mb-3 text-center">Login</h3>
-
-            <div class="mb-3">
-                <label class="form-label">Username</label>
-                <InputText @bind-Value="user.Username" class="form-control" />
-                <ValidationMessage For="@(() => user.Username)" class="text-danger" />
-                <p class="text-danger">@usernameMessage</p>
+            <div style="text-align:center;margin-bottom:28px;">
+                <div style="width:44px;height:44px;background:#f0f4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;">
+                    <i class="bi bi-shield-lock" style="font-size:20px;color:#1a73e8;"></i>
+                </div>
+                <h2 style="font-size:20px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Selamat Datang</h2>
+                <p style="font-size:13px;color:#9aa0ab;margin:0;">Masuk ke CIP Station</p>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <InputText @bind-Value="user.Password" type="password" class="form-control" />
-                <ValidationMessage For="@(() => user.Password)" class="text-danger" />
-                <p class="text-danger">@passwordMessage</p>
-            </div>
+            <EditForm Model="user" OnValidSubmit="LoginUser">
+                <DataAnnotationsValidator />
 
-            <button type="submit" class="btn btn-primary w-100">Login</button>
-        </EditForm>
+                <div style="margin-bottom:16px;">
+                    <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Username</label>
+                    <InputText @bind-Value="user.Username"
+                               style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
+                    <ValidationMessage For="@(() => user.Username)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
+                    @if (!string.IsNullOrEmpty(usernameMessage))
+                    {
+                        <span style="font-size:12px;color:#e53935;margin-top:4px;display:block;">@usernameMessage</span>
+                    }
+                </div>
+
+                <div style="margin-bottom:24px;">
+                    <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Password</label>
+                    <InputText @bind-Value="user.Password" type="password"
+                               style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
+                    <ValidationMessage For="@(() => user.Password)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
+                    @if (!string.IsNullOrEmpty(passwordMessage))
+                    {
+                        <span style="font-size:12px;color:#e53935;margin-top:4px;display:block;">@passwordMessage</span>
+                    }
+                </div>
+
+                <button type="submit"
+                        style="width:100%;padding:11px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+                    Masuk
+                </button>
+            </EditForm>
+
+        </div>
     </div>
 }
 
@@ -52,30 +67,29 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-            isLoggedIn = !string.IsNullOrEmpty(token);
-            StateHasChanged();
-        }
+        if (!firstRender) return;
+
+        token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        isLoggedIn = !string.IsNullOrEmpty(token);
+        StateHasChanged();
     }
-    
+
     async Task LoginUser()
     {
         User? checkUser = db.Users.FirstOrDefault(u => u.Username == user.Username);
-        if(checkUser == null)
+        if (checkUser == null)
         {
             usernameMessage = "Username not found";
             passwordMessage = String.Empty;
             return;
         }
-        if(!BCrypt.Net.BCrypt.Verify(user.Password, checkUser.Password))
+        if (!BCrypt.Net.BCrypt.Verify(user.Password, checkUser.Password))
         {
             usernameMessage = String.Empty;
             passwordMessage = "Wrong password";
             return;
         }
-        
+
         HttpResponseMessage? response = await Http.PostAsJsonAsync("api/auth/login", checkUser);
         if (response.IsSuccessStatusCode)
         {

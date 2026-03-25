@@ -4,32 +4,41 @@
 @using System.IdentityModel.Tokens.Jwt
 @using System.Security.Claims
 
-@if (!string.IsNullOrEmpty(alertMessage))
-{
-    <div class="alert alert-@alertType alert-dismissible fade show" role="alert">
-        @alertMessage
-        <button type="button" class="btn-close" @onclick="() => alertMessage = String.Empty"></button>
+<div style="max-width:640px;">
+
+    <div style="margin-bottom:28px;">
+        <h2 style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Send Email</h2>
+        <p style="font-size:13px;color:#9aa0ab;margin:0;">Kirim notifikasi alarm ke seluruh penerima terdaftar</p>
     </div>
-}
 
-<div class="d-flex justify-content-center mt-5">
-    <div class="card shadow-sm p-4" style="max-width: 600px; width: 100%;">
-        
-        <h3 class="mb-3">Send Email</h3>
-
-        <div class="mb-3">
-            <textarea @bind="text" class="form-control" rows="4" placeholder="Type your message..."></textarea>
-        </div>
-
-        <div class="d-flex justify-content-end">
-            <button class="btn btn-primary d-flex align-items-center gap-2"
-                    @onclick="Send">
-                <i class="bi bi-send"></i>
-                Send
+    @if (!string.IsNullOrEmpty(alertMessage))
+    {
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:13px;font-weight:500;background:@(alertType == "success" ? "#f0fdf4" : "#fff0f0");color:@(alertType == "success" ? "#15803d" : "#e53935");border:1px solid @(alertType == "success" ? "#bbf7d0" : "#ffd6d6");">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <i class="bi bi-@(alertType == "success" ? "check-circle" : "exclamation-circle")" style="font-size:15px;"></i>
+                @alertMessage
+            </div>
+            <button @onclick="() => alertMessage = String.Empty" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;display:flex;align-items:center;">
+                <i class="bi bi-x" style="font-size:17px;"></i>
             </button>
         </div>
+    }
 
+    <div style="background:#ffffff;border-radius:12px;border:1px solid #e8eaed;padding:24px;">
+        <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Pesan</label>
+            <textarea @bind="text" rows="6" placeholder="Tulis pesan notifikasi alarm..."
+                      style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;">
+            <button @onclick="Send" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">
+                <i class="bi bi-send" style="font-size:14px;"></i>
+                Kirim Email
+            </button>
+        </div>
     </div>
+
 </div>
 
 @code {
@@ -39,23 +48,19 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-            if (string.IsNullOrEmpty(token))
-            {
-                NavigationManager.NavigateTo("/");
-                return;
-            }
+        if (!firstRender) return;
 
-            JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
-            JwtSecurityToken? jwt = handler.ReadJwtToken(token);
-            string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-            if (role != "Admin")
-            {
-                NavigationManager.NavigateTo("/");
-            }
+        string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (string.IsNullOrEmpty(token))
+        {
+            NavigationManager.NavigateTo("/");
+            return;
         }
+
+        JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+        string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+        if (role != "Admin") NavigationManager.NavigateTo("/");
     }
 
     void Send()
@@ -65,10 +70,7 @@
             SmtpClient? smtp = new SmtpClient("smtp.gmail.com")
             {
                 Port = 587,
-                Credentials = new NetworkCredential(
-                    "cpif2023@gmail.com",
-                    "vdvutfsbssxozmpb"
-                ),
+                Credentials = new NetworkCredential("cpif2023@gmail.com", "vdvutfsbssxozmpb"),
                 EnableSsl = true
             };
 
@@ -83,9 +85,9 @@
                 .Select(e => new MailAddress(e.Address))
                 .ToList()
                 .ForEach(addr => mail.Bcc.Add(addr));
-            
+
             smtp.Send(mail);
-            alertMessage = "Email sent!";
+            alertMessage = "Email berhasil dikirim!";
             alertType = "success";
         }
         catch (Exception ex)
