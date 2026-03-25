@@ -2,59 +2,82 @@
 @using System.IdentityModel.Tokens.Jwt
 @using System.Security.Claims
 
-<EditForm Model="user" OnValidSubmit="AddUser" class="card p-4 shadow-sm mb-4">
-    <DataAnnotationsValidator />
-    <h4 class="mb-3">Add User</h4>
-    <div class="row">
-        <div class="col-4">
-            <label class="form-label">Username</label>
-            <InputText @bind-Value="user.Username" class="form-control" />
-            <ValidationMessage For="@(() => user.Username)" class="text-danger" />
-            <p class="text-danger">@message</p>
-        </div>
+<div style="max-width:900px;">
 
-        <div class="col-4">
-            <label class="form-label">Password</label>
-            <InputText @bind-Value="user.Password" type="password" class="form-control" />
-            <ValidationMessage For="@(() => user.Password)" class="text-danger" />
-        </div>
-
-        <div class="form-check col-2 d-flex align-items-center justify-content-center">
-            <InputCheckbox @bind-Value="user.IsAdmin" class="form-check-input me-2" />
-            <label class="form-check-label">
-                Is Admin
-            </label>
-        </div>
-
-        <div class="d-flex align-items-center justify-content-center col-2">
-            <button type="submit"
-                    class="btn btn-primary"
-                    style="height: 50px;">
-                <i class="bi bi-plus-lg"></i>
-                Add
-            </button>
-        </div>
+    <div style="margin-bottom:28px;">
+        <h2 style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Users</h2>
+        <p style="font-size:13px;color:#9aa0ab;margin:0;">Manage user accounts and permissions</p>
     </div>
-</EditForm>
 
-<h3 class="mb-3">Users</h3>
+    <EditForm Model="user" OnValidSubmit="AddUser">
+        <DataAnnotationsValidator />
+        <div style="background:#ffffff;border-radius:12px;border:1px solid #e8eaed;padding:24px;margin-bottom:28px;">
+            <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0 0 20px 0;">Add New User</h5>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:16px;align-items:end;">
 
-<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
-    @foreach (User u in users)
-    {
-        <div class="col">
-            <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
-                <span>@u.Username</span>
-                @if(u.Username != "user")
-                {
-                    <button class="btn btn-danger btn-sm d-flex align-items-center justify-content-center"
-                            @onclick="() => DeleteUser(u)">
-                        <i class="bi bi-trash"></i>
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Username</label>
+                    <InputText @bind-Value="user.Username" style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
+                    <ValidationMessage For="@(() => user.Username)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
+                    @if (!string.IsNullOrEmpty(message))
+                    {
+                        <span style="font-size:12px;color:#e53935;margin-top:4px;display:block;">@message</span>
+                    }
+                </div>
+
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Password</label>
+                    <InputText @bind-Value="user.Password" type="password" style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
+                    <ValidationMessage For="@(() => user.Password)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
+                </div>
+
+                <div style="display:flex;align-items:center;gap:8px;padding-bottom:2px;">
+                    <InputCheckbox @bind-Value="user.IsAdmin" style="width:16px;height:16px;accent-color:#1a73e8;cursor:pointer;" />
+                    <label style="font-size:13.5px;color:#5f6368;font-weight:500;white-space:nowrap;">Is Admin</label>
+                </div>
+
+                <div>
+                    <button type="submit" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                        <i class="bi bi-plus-lg" style="font-size:14px;"></i>
+                        Add User
                     </button>
-                }                
+                </div>
+
             </div>
         </div>
-    }
+    </EditForm>
+
+    <div style="background:#ffffff;border-radius:12px;border:1px solid #e8eaed;">
+        <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
+            <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0;">All Users</h5>
+            <span style="font-size:12px;color:#9aa0ab;background:#f4f6f9;padding:4px 10px;border-radius:20px;">@users.Count total</span>
+        </div>
+
+        <div style="padding:12px 16px;">
+            @foreach (User u in users)
+            {
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 8px;border-radius:8px;border-bottom:1px solid #f9f9f9;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="width:36px;height:36px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <i class="bi bi-person-fill" style="color:white;font-size:15px;"></i>
+                        </div>
+                        <div>
+                            <div style="font-size:14px;font-weight:600;color:#1a1a2e;">@u.Username</div>
+                            <div style="font-size:12px;color:#9aa0ab;">@(u.IsAdmin ? "Administrator" : "User")</div>
+                        </div>
+                    </div>
+                    @if (u.Username != "user")
+                    {
+                        <button @onclick="() => DeleteUser(u)" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:#fff0f0;color:#e53935;border:1px solid #ffd6d6;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;">
+                            <i class="bi bi-trash" style="font-size:13px;"></i>
+                            Delete
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
 </div>
 
 @code {
@@ -87,7 +110,7 @@
     {
         users = db.Users.ToList();
     }
-    
+
     async Task AddUser()
     {
         bool exists = db.Users.Any(u => u.Username == user.Username);
