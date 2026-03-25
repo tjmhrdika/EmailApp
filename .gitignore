@@ -1,60 +1,50 @@
 # =========================
-# .NET / C#
+# BUILD OUTPUT (WAJIB)
 # =========================
 bin/
 obj/
+
+# =========================
+# IDE / EDITOR
+# =========================
+.vs/
+.vscode/
+.idea/
+
+# =========================
+# USER / TEMP FILES
+# =========================
 *.user
 *.rsuser
 *.suo
 *.userosscache
 *.sln.docstates
 
-# Build / publish
-publish/
-*.publishsettings
-
-# Logs
+# =========================
+# LOGS
+# =========================
 *.log
 
-# NuGet
-packages/
-*.nupkg
-*.snupkg
-
-# Rider / VS Code / Visual Studio
-.vscode/
-.idea/
-.vs/
-
-# OS
+# =========================
+# OS FILES
+# =========================
 .DS_Store
 Thumbs.db
 
 # =========================
-# ASP.NET / Blazor
+# STATIC WEB ASSETS CACHE (Blazor)
 # =========================
-wwwroot/lib/        # kalau pakai library lokal (opsional)
-wwwroot/dist/       # kalau ada build output frontend
-
-# Static web assets cache
 obj/Debug/net8.0/staticwebassets/
 obj/Release/net8.0/staticwebassets/
 
 # =========================
-# Entity Framework
+# ENV / SECRET
 # =========================
-Migrations/*Designer.cs
-Migrations/*Snapshot.cs
+appsettings.Development.json
 
 # =========================
-# Node (kalau ada)
+# OPTIONAL (kalau nanti ada)
 # =========================
 node_modules/
 dist/
 build/
-
-# =========================
-# Env / secrets
-# =========================
-appsettings.Development.json
-.env
