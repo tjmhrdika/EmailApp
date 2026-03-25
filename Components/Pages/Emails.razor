@@ -2,32 +2,144 @@
 @using System.IdentityModel.Tokens.Jwt
 @using System.Security.Claims
 
-<EditForm Model="email" OnValidSubmit="AddEmail" class="card p-4 shadow-sm mb-4" style="max-width: 500px; width: 100%;">
-    <DataAnnotationsValidator />
-    <h4 class="mb-3">Add Email</h4>
-    <div class="row">
-        <div class="col-9">
-            <label class="form-label">Address</label>
-            <InputText @bind-Value="email.Address" class="form-control" />
-            <ValidationMessage For="@(() => email.Address)" class="text-danger" />
-            <p class="text-danger">@message</p>
-        </div>
+<div class="d-flex gap-4 mb-4 @(isAdmin ? "" : "d-none")">
+    <EditForm Model="email" OnValidSubmit="AddEmail" class="card p-4 shadow-sm mb-4" style="max-width: 800px; width: 100%;">
+        <DataAnnotationsValidator />
+        <h4 class="mb-3">Add Email</h4>
+        <div class="row">
+            <div class="col-6">
+                <label class="form-label">Address</label>
+                <InputText @bind-Value="email.Address" class="form-control" />
+                <ValidationMessage For="@(() => email.Address)" class="text-danger" />
+                <p class="text-danger">@message</p>
+            </div>
 
-        <div class="d-flex align-items-center justify-content-center col">
-            <button type="submit"
-                    class="btn btn-primary"
-                    style="height: 50px;">
-                <i class="bi bi-plus-lg"></i>
-                Add
-            </button>
+            <div class="col-4">
+                <label class="form-label">Group</label>
+                <InputSelect @bind-Value="email.EmailGroupId" class="form-control">
+                    <option value="">-- No Group --</option>
+                    @foreach (var g in groups)
+                    {
+                        <option value="@g.Id">@g.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            
+            <div class="d-flex align-items-center justify-content-center col">
+                <button type="submit"
+                        class="btn btn-primary"
+                        style="height: 50px;">
+                    <i class="bi bi-plus-lg"></i>
+                    Add
+                </button>
+            </div>
         </div>
-    </div>
-</EditForm>
+    </EditForm>
+
+    <EditForm Model="group" OnValidSubmit="AddGroup" class="card p-4 shadow-sm mb-4" style="max-width: 500px; width: 100%;">
+        <DataAnnotationsValidator />
+        <h4 class="mb-3">Add Group</h4>
+        <div class="row align-items-end">
+            <div class="col-8">
+                <label class="form-label">Name</label>
+                <InputText @bind-Value="group.Name" class="form-control"/>
+                <ValidationMessage For="@(() => group.Name)" class="text-danger" />
+            </div>
+            
+            <div class="d-flex align-items-center justify-content-center col">
+                <button type="submit"
+                        class="btn btn-primary"
+                        style="height: 50px;">
+                    <i class="bi bi-plus-lg"></i>
+                    Add
+                </button>
+            </div>
+        </div>
+    </EditForm>
+</div>
 
 <h3 class="mb-3">Emails</h3>
 
-<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-3">
-    @foreach (Email e in emails)
+@foreach (var grp in groups)
+{
+    <div class="mb-4">
+
+        <!-- Group Header -->
+        <div class="card p-2 d-flex flex-row justify-content-between align-items-center mb-1" style="max-width:500px;">
+            <h5 class="form-label me-2">Group</h5>
+            <InputText @bind-Value="grp.Name"
+                class="form-control me-2"
+                disabled="@(grp.Id != editingGroupId)" />
+
+            <button class="btn btn-sm btn-primary me-1 @(isAdmin ? "" : "d-none")"
+                    @onclick="() => ToggleGroupEdit(grp)">
+                <i class="bi @(grp.Id == editingGroupId ? "bi-check-lg" : "bi-pencil")"></i>
+            </button>
+
+            <button class="btn btn-sm btn-danger @(isAdmin ? "" : "d-none")"
+                    @onclick="() => DeleteOrCancelGroup(grp)">
+                <i class="bi @(editingGroupId == grp.Id ? "bi-x" : "bi-trash")"></i>
+            </button>
+        </div>
+
+        <!-- Emails -->
+        <div class="row g-2">
+            @foreach (var e in emails.Where(e => e.EmailGroupId == grp.Id))
+            {
+                <div class="col-3">
+                    <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
+
+                        <InputText @bind-Value="e.Address"
+                                class="form-control me-2"
+                                disabled="@(e.Id != editingEmailId)" />
+
+                        <button class="btn btn-sm btn-primary me-1 @(isAdmin ? "" : "d-none")"
+                                @onclick="() => ToggleEdit(e)">
+                            <i class="bi @(e.Id == editingEmailId ? "bi-check-lg" : "bi-pencil")"></i>
+                        </button>
+
+                        <button class="btn btn-sm btn-danger @(isAdmin ? "" : "d-none")"
+                                @onclick="() => DeleteOrCancel(e)">
+                            <i class="bi @(editingEmailId == e.Id ? "bi-x" : "bi-trash")"></i>
+                        </button>
+
+                    </div>
+                </div>
+            }
+        </div>
+
+    </div>
+}
+
+<div class="mb-4">
+    <h5>Not Grouped</h5>
+
+    <div class="row g-2">
+        @foreach (var e in emails.Where(e => e.EmailGroupId == null))
+        {
+            <div class="col-3">
+                <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
+
+                    <InputText @bind-Value="e.Address"
+                            class="form-control me-2"
+                            disabled="@(e.Id != editingEmailId)" />
+
+                    <button class="btn btn-sm btn-primary me-1 @(isAdmin ? "" : "d-none")"
+                            @onclick="() => ToggleEdit(e)">
+                        <i class="bi @(e.Id == editingEmailId ? "bi-check-lg" : "bi-pencil")"></i>
+                    </button>
+
+                    <button class="btn btn-sm btn-danger @(isAdmin ? "" : "d-none")"
+                            @onclick="() => DeleteOrCancel(e)">
+                        <i class="bi @(editingEmailId == e.Id ? "bi-x" : "bi-trash")"></i>
+                    </button>
+
+                </div>
+            </div>
+        }
+    </div>
+</div>
+    @* @foreach (Email e in emails)
     {
         <div class="col">
             <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
@@ -46,14 +158,19 @@
                 </button>               
             </div>
         </div>
-    }
-</div>
+    } *@
 
 @code {
+    bool isAdmin = false;
     Email email = new Email();
     string message = String.Empty;
     List<Email> emails = new List<Email>();
     Guid? editingEmailId = null;
+
+    EmailGroup group = new();
+    List<EmailGroup> groups = new();
+
+    Guid? editingGroupId = null;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -69,9 +186,10 @@
             JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
             JwtSecurityToken? jwt = handler.ReadJwtToken(token);
             string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-            if (role != "Admin")
+            if (role == "Admin")
             {
-                NavigationManager.NavigateTo("/");
+                isAdmin = true;
+                StateHasChanged();
             }
         }
     }
@@ -79,6 +197,7 @@
     protected override void OnInitialized()
     {
         emails = db.Emails.ToList();
+        groups = db.EmailGroups.ToList();
     }
     
     async Task AddEmail()
@@ -122,6 +241,49 @@
         else
         {
             editingEmailId = e.Id;
+        }
+    }
+
+    async Task AddGroup()
+    {
+        await db.EmailGroups.AddAsync(group);
+        await db.SaveChangesAsync();
+
+        group = new EmailGroup();
+        groups = db.EmailGroups.ToList();
+    }
+
+    async Task ToggleGroupEdit(EmailGroup g)
+    {
+        if (editingGroupId == g.Id)
+        {
+            db.EmailGroups.Update(g);
+            await db.SaveChangesAsync();
+            editingGroupId = null;
+        }
+        else
+        {
+            editingGroupId = g.Id;
+        }
+    }
+
+    async Task DeleteOrCancelGroup(EmailGroup g)
+    {
+        if (editingGroupId == g.Id) {
+            editingGroupId = null;
+        }
+        else
+        {
+            var relatedEmails = db.Emails.Where(e => e.EmailGroupId == g.Id);
+            foreach (var e in relatedEmails)
+            {
+                e.EmailGroupId = null;
+            }
+
+            db.EmailGroups.Remove(g);
+            await db.SaveChangesAsync();
+            groups = db.EmailGroups.ToList();
+            emails = db.Emails.ToList();
         }
     }
 }

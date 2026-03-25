@@ -7,7 +7,7 @@
         <div style="width:32px;height:32px;background:#1a73e8;border-radius:8px;display:flex;align-items:center;justify-content:center;">
             <i class="bi bi-envelope-fill" style="color:white;font-size:15px;"></i>
         </div>
-        <span style="font-size:17px;font-weight:700;color:#1a1a2e;letter-spacing:-0.3px;">EmailApp</span>
+        <span style="font-size:17px;font-weight:700;color:#1a1a2e;letter-spacing:-0.3px;">AlarmEmailApp</span>
     </div>
 
     <div style="padding:12px 12px 0 12px;">
@@ -19,12 +19,14 @@
 
     <div style="flex:1;padding:8px 12px;overflow-y:auto;margin-top:8px;">
         @NavItem("", "bi-house-door", "Home", true)
-
-        @if (isAdmin)
+        @if (isLoggedIn)
         {
             @NavItem("users", "bi-people", "Users")
-            @NavItem("emails", "bi-at", "Emails", false, true)
-            @NavItem("send-email", "bi-send", "Send Email")
+            @NavItem("emails", "bi-at", "Emails")
+            @if (isAdmin)
+            {
+                @NavItem("send-email", "bi-send", "Send Email")
+            }   
         }
     </div>
 
@@ -43,16 +45,20 @@
                 <i class="bi bi-gear" style="font-size:15px;width:18px;"></i>
                 Settings
             </a>
-            <a href="logout" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:#5f6368;font-size:13px;">
-                <i class="bi bi-box-arrow-right" style="font-size:15px;width:18px;"></i>
-                Log out
-            </a>
+            @if (isLoggedIn)
+            {
+                <a href="" @onclick="Logout" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:#5f6368;font-size:13px;">
+                    <i class="bi bi-box-arrow-right" style="font-size:15px;width:18px;"></i>
+                    Log out
+                </a>
+            }
         </div>
     </div>
 
 </div>
 
 @code {
+    bool isLoggedIn = false;
     bool isAdmin = false;
 
     RenderFragment NavItem(string href, string icon, string text, bool matchAll = false, bool isAlert = false) => builder =>
@@ -85,14 +91,22 @@
 
         var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
         if (string.IsNullOrEmpty(token)) return;
+        isLoggedIn = true;
+        StateHasChanged();
 
-        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-
+        JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+        string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
         if (role == "Admin")
         {
             isAdmin = true;
             StateHasChanged();
         }
+    }
+
+    async Task Logout()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        NavigationManager.NavigateTo("/", true);
     }
 }

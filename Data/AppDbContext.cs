@@ -6,6 +6,7 @@ public class AppDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Email> Emails { get; set; }
+    public DbSet<EmailGroup> EmailGroups { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -8,4 +8,7 @@ public class Email
     [EmailAddress]
     [StringLength(320, MinimumLength = 4)]
     public string Address { get; set; } = String.Empty;
+
+    public Guid? EmailGroupId { get; set; }
+    public EmailGroup? EmailGroup { get; set; }
 }

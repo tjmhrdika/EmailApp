@@ -3,6 +3,7 @@
 @using System.Net.Mail
 @using System.IdentityModel.Tokens.Jwt
 @using System.Security.Claims
+@using System.ComponentModel.DataAnnotations
 
 @if (!string.IsNullOrEmpty(alertMessage))
 {
@@ -12,28 +13,71 @@
     </div>
 }
 
-<div class="d-flex justify-content-center mt-5">
-    <div class="card shadow-sm p-4" style="max-width: 600px; width: 100%;">
-        
-        <h3 class="mb-3">Send Email</h3>
+<EditForm Model="@form" OnValidSubmit="Send">
+    <DataAnnotationsValidator />
 
-        <div class="mb-3">
-            <textarea @bind="text" class="form-control" rows="4" placeholder="Type your message..."></textarea>
+    <div class="d-flex justify-content-center mt-5">
+        <div class="card shadow-sm p-4" style="max-width: 600px; width: 100%;">
+
+            <h3 class="mb-3">Send Email</h3>
+            
+            <div class="mb-3">
+                <label class="form-label">SMTP</label>
+                <InputText class="form-control" @bind-Value="form.SMTP" />
+                <ValidationMessage For="@(() => form.SMTP)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">From Email Address</label>
+                <InputText type="email" class="form-control" @bind-Value="form.FromEmail" />
+                <ValidationMessage For="@(() => form.FromEmail)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Password Email</label>
+                <InputText type="password" class="form-control" @bind-Value="form.Password" />
+                <ValidationMessage For="@(() => form.Password)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">To Email Address</label>
+                <InputText type="email" class="form-control" @bind-Value="form.ToEmail" />
+                <ValidationMessage For="@(() => form.ToEmail)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Text</label>
+                <InputTextArea class="form-control" rows="4" @bind-Value="form.Text" />
+                <ValidationMessage For="@(() => form.Text)" />
+            </div>
+
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                    <i class="bi bi-send"></i>
+                    Send
+                </button>
+            </div>
+
         </div>
-
-        <div class="d-flex justify-content-end">
-            <button class="btn btn-primary d-flex align-items-center gap-2"
-                    @onclick="Send">
-                <i class="bi bi-send"></i>
-                Send
-            </button>
-        </div>
-
     </div>
-</div>
+</EditForm>
 
 @code {
-    string text = String.Empty;
+    class SendEmailModel
+    {
+        [Required]
+        public string SMTP { get; set; } = String.Empty;
+        [Required, EmailAddress]
+        public string FromEmail { get; set; } = String.Empty;
+        [Required]
+        public string Password { get; set; } = String.Empty;
+        [Required, EmailAddress]
+        public string ToEmail { get; set; } = String.Empty;
+        [Required]
+        public string Text { get; set; } = String.Empty;
+    }
+
+    SendEmailModel form = new SendEmailModel();
     string alertMessage = String.Empty;
     string alertType = String.Empty;
 
@@ -62,29 +106,26 @@
     {
         try
         {
-            SmtpClient? smtp = new SmtpClient("smtp.gmail.com")
+            SmtpClient? smtp = new SmtpClient(form.SMTP)
             {
                 Port = 587,
                 Credentials = new NetworkCredential(
-                    "cpif2023@gmail.com",
-                    "vdvutfsbssxozmpb"
+                    form.FromEmail,
+                    form.Password
                 ),
                 EnableSsl = true
             };
 
             MailMessage? mail = new MailMessage
             {
-                From = new MailAddress("cpif2023@gmail.com"),
+                From = new MailAddress(form.FromEmail),
                 Subject = "Alarm Notification",
-                Body = text,
+                Body = form.Text,
             };
 
-            db.Emails
-                .Select(e => new MailAddress(e.Address))
-                .ToList()
-                .ForEach(addr => mail.Bcc.Add(addr));
-            
+            mail.To.Add(form.ToEmail);
             smtp.Send(mail);
+
             alertMessage = "Email sent!";
             alertType = "success";
         }
