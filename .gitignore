@@ -1,0 +1,60 @@
+# =========================
+# .NET / C#
+# =========================
+bin/
+obj/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build / publish
+publish/
+*.publishsettings
+
+# Logs
+*.log
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Rider / VS Code / Visual Studio
+.vscode/
+.idea/
+.vs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# =========================
+# ASP.NET / Blazor
+# =========================
+wwwroot/lib/        # kalau pakai library lokal (opsional)
+wwwroot/dist/       # kalau ada build output frontend
+
+# Static web assets cache
+obj/Debug/net8.0/staticwebassets/
+obj/Release/net8.0/staticwebassets/
+
+# =========================
+# Entity Framework
+# =========================
+Migrations/*Designer.cs
+Migrations/*Snapshot.cs
+
+# =========================
+# Node (kalau ada)
+# =========================
+node_modules/
+dist/
+build/
+
+# =========================
+# Env / secrets
+# =========================
+appsettings.Development.json
+.env
