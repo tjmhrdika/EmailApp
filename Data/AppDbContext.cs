@@ -7,6 +7,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Email> Emails { get; set; }
     public DbSet<EmailGroup> EmailGroups { get; set; }
+    public DbSet<SetSmtp> SetSmtp { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -35,5 +36,15 @@ public class AppDbContext : DbContext
             entity.HasIndex(u => u.Address)
                 .IsUnique();
         });
+
+        modelBuilder.Entity<SetSmtp>().HasData(
+            new SetSmtp
+            {
+                Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                Smtp = "",
+                Email = "",
+                Password = ""
+            }
+        );
     }
 }
