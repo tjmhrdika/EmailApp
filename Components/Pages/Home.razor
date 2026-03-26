@@ -1,349 +1,131 @@
-@page "/"
-
-@using System.Collections.Generic
-@using System.Linq
+﻿@page "/"
+@using EmailApp.Models
+@using EmailApp.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AlarmDbContext> AlarmDbFactory
 
 <PageTitle>Dashboard</PageTitle>
 
 <div style="font-family:'Segoe UI',sans-serif;min-height:100vh;background:#f0f2f5;padding:28px 32px;">
+<div style="max-width:1200px;margin:0 auto;">
 
-    <div style="max-width:1200px;margin:0 auto;">
-
-        <div style="margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;">
-            <div>
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-                    <h1 style="font-size:22px;font-weight:700;color:#0d1b2a;margin:0;letter-spacing:-0.4px;">Alarm Incident Report</h1>
-                </div>
-                <p style="font-size:13px;color:#6b7a8d;">CIP Station - Laporan Pengajuan Alarm ke Manajemen</p>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:8px;">
-                    <div style="width:8px;height:8px;background:#f59e0b;border-radius:50%;"></div>
-                    <span style="font-size:12px;font-weight:600;color:#92400e;">@dummyData.Count(a => a.AlarmState == "UNACK_ALM") Unacknowledged</span>
-                </div>
-                <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:8px;">
-                    <div style="width:8px;height:8px;background:#ef4444;border-radius:50%;animation:pulse 1.5s infinite;"></div>
-                    <span style="font-size:12px;font-weight:600;color:#991b1b;">@dummyData.Count total alarms</span>
-                </div>
-            </div>
+    <div style="margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+            <h1 style="font-size:22px;font-weight:700;color:#0d1b2a;margin:0;">Alarm Incident Report</h1>
+            <p style="font-size:13px;color:#6b7a8d;">CIP Station - Laporan Pengajuan Alarm</p>
         </div>
-
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-
-            <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-                <div style="font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Total Alarms</div>
-                <div style="font-size:32px;font-weight:800;color:#0d1b2a;letter-spacing:-1px;">@dummyData.Count</div>
-                <div style="font-size:12px;color:#6b7a8d;margin-top:4px;">Periode hari ini</div>
-            </div>
-
-            <div style="background:#ffffff;border-radius:12px;border:1px solid #fca5a5;padding:20px;box-shadow:0 1px 4px rgba(239,68,68,0.08);">
-                <div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">UNACK Alarms</div>
-                <div style="font-size:32px;font-weight:800;color:#dc2626;letter-spacing:-1px;">@dummyData.Count(a => a.AlarmState == "UNACK_ALM")</div>
-                <div style="font-size:12px;color:#6b7a8d;margin-top:4px;">Belum di-acknowledge</div>
-            </div>
-
-            <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-                <div style="font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Priority 500</div>
-                <div style="font-size:32px;font-weight:800;color:#f59e0b;letter-spacing:-1px;">@dummyData.Count(a => a.Priority == 500)</div>
-                <div style="font-size:12px;color:#6b7a8d;margin-top:4px;">Alarm kritis</div>
-            </div>
-
-            <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-                <div style="font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Groups</div>
-                <div style="font-size:32px;font-weight:800;color:#1a73e8;letter-spacing:-1px;">@dummyData.Select(a => a.GroupName).Distinct().Count()</div>
-                <div style="font-size:12px;color:#6b7a8d;margin-top:4px;">Grup terlibat</div>
-            </div>
-
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;margin-bottom:24px;">
-
-            <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-                <h3 style="font-size:14px;font-weight:700;color:#0d1b2a;margin:0 0 16px 0;">Detail Alarm per Group</h3>
-
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-                    @foreach (var group in dummyData.GroupBy(a => a.GroupName).OrderByDescending(g => g.Count()))
-                    {
-                        var unack = group.Count(a => a.AlarmState == "UNACK_ALM");
-                        var total = group.Count();
-                        var pct = (double)unack / total * 100;
-
-                        <div style="background:#f8fafc;border-radius:8px;padding:14px;border:1px solid #e2e8f0;">
-                            <div style="font-size:11px;font-weight:700;color:#1a73e8;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@group.Key">@group.Key</div>
-                            <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:8px;">
-                                <span style="font-size:22px;font-weight:800;color:#0d1b2a;">@total</span>
-                                <span style="font-size:11px;color:#6b7a8d;">alarms</span>
-                            </div>
-                            <div style="height:4px;background:#e2e8f0;border-radius:2px;overflow:hidden;margin-bottom:6px;">
-                                <div style="height:100%;width:@(pct.ToString("0"))%;background:#ef4444;border-radius:2px;"></div>
-                            </div>
-                            <div style="font-size:11px;color:#dc2626;font-weight:600;">@unack unack</div>
-                        </div>
-                    }
-                </div>
-            </div>
-
-            <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-                <h3 style="font-size:14px;font-weight:700;color:#0d1b2a;margin:0 0 16px 0;">Operator On Duty</h3>
-
-                @foreach (var op in dummyOperators)
-                {
-                    var count = dummyData.Count(a => a.OperatorId == op.OperatorId);
-                    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;">
-                        <div style="width:36px;height:36px;background:linear-gradient(135deg,#1a73e8,#0d47a1);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            <span style="color:white;font-size:13px;font-weight:700;">@op.UserFullName.Split(' ')[0][0]@(op.UserFullName.Split(' ').Length > 1 ? op.UserFullName.Split(' ')[1][0].ToString() : "")</span>
-                        </div>
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-size:13px;font-weight:600;color:#0d1b2a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@op.UserFullName</div>
-                            <div style="font-size:11px;color:#6b7a8d;">@op.UserDomainName</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:14px;font-weight:700;color:#0d1b2a;">@count</div>
-                            <div style="font-size:10px;color:#6b7a8d;">actions</div>
-                        </div>
-                    </div>
-                }
-
-                <div style="margin-top:16px;padding-top:12px;border-top:1px solid #f1f5f9;">
-                    <h4 style="font-size:12px;font-weight:700;color:#0d1b2a;margin:0 0 10px 0;">Causes Identified</h4>
-                    @foreach (var cause in dummyCauses)
-                    {
-                        var ccount = dummyData.Count(a => a.CauseId == cause.CauseId);
-                        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;">
-                            <span style="font-size:12px;color:#374151;flex:1;padding-right:8px;">@cause.CauseDescription</span>
-                            <span style="font-size:12px;font-weight:700;color:#1a73e8;background:#eff6ff;padding:2px 8px;border-radius:12px;">@ccount</span>
-                        </div>
-                    }
-                </div>
-            </div>
-
-        </div>
-
-        <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow:hidden;margin-bottom:24px;">
-
-            <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
-                <h3 style="font-size:14px;font-weight:700;color:#0d1b2a;margin:0;">Detail Alarm Log</h3>
-                <div style="display:flex;gap:8px;">
-                    <select @bind="filterState" style="font-size:12px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;color:#374151;background:#f8fafc;outline:none;">
-                        <option value="">Semua State</option>
-                        <option value="UNACK_ALM">UNACK_ALM</option>
-                        <option value="ACK_ALM">ACK_ALM</option>
-                        <option value="EVENT">EVENT</option>
-                    </select>
-                    <select @bind="filterGroup" style="font-size:12px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;color:#374151;background:#f8fafc;outline:none;">
-                        <option value="">Semua Group</option>
-                        @foreach (var g in dummyData.Select(a => a.GroupName).Distinct())
-                        {
-                            <option value="@g">@g</option>
-                        }
-                    </select>
-                </div>
-            </div>
-
-            <div style="overflow-x:auto;">
-                <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-                    <thead>
-                        <tr style="background:#f8fafc;">
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">#</th>
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">Waktu</th>
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;">State</th>
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;">Tag Name</th>
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;">Group</th>
-                            <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;">Priority</th>
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;">Cause</th>
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;">Operator</th>
-                            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;border-bottom:1px solid #e2e8f0;">Comment</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @{
-                            var filtered = dummyData.AsEnumerable();
-                            if (!string.IsNullOrEmpty(filterState)) filtered = filtered.Where(a => a.AlarmState == filterState);
-                            if (!string.IsNullOrEmpty(filterGroup)) filtered = filtered.Where(a => a.GroupName == filterGroup);
-                            var idx = 1;
-                        }
-                        @foreach (var item in filtered.OrderByDescending(a => a.EventStamp))
-                        {
-                            var op = dummyOperators.FirstOrDefault(o => o.OperatorId == item.OperatorId);
-                            var cause = dummyCauses.FirstOrDefault(c => c.CauseId == item.CauseId);
-                            var comment = dummyComments.FirstOrDefault(c => c.CommentId == item.CommentId);
-                            var isUnack = item.AlarmState == "UNACK_ALM";
-                            var rowBg = idx % 2 == 0 ? "#fafbfc" : "#ffffff";
-                            var rowBgFinal = isUnack ? "#fff8f8" : rowBg;
-
-                            <tr style="background:@rowBgFinal;border-bottom:1px solid #f1f5f9;">
-                                <td style="padding:10px 16px;color:#9ca3af;font-size:11px;">@(idx++)</td>
-                                <td style="padding:10px 16px;white-space:nowrap;color:#374151;font-variant-numeric:tabular-nums;">
-                                    @item.EventStamp.ToString("dd/MM HH:mm:ss")
-                                </td>
-                                <td style="padding:10px 16px;">
-                                    @if (item.AlarmState == "UNACK_ALM")
-                                    {
-                                        <span style="display:inline-flex;align-items:center;gap:5px;background:#fee2e2;color:#dc2626;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;">
-                                            <span style="width:5px;height:5px;background:#dc2626;border-radius:50%;display:inline-block;"></span>
-                                            UNACK
-                                        </span>
-                                    }
-                                    else if (item.AlarmState == "ACK_ALM")
-                                    {
-                                        <span style="display:inline-flex;align-items:center;gap:5px;background:#d1fae5;color:#059669;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;">
-                                            <span style="width:5px;height:5px;background:#059669;border-radius:50%;display:inline-block;"></span>
-                                            ACK
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span style="display:inline-flex;align-items:center;gap:5px;background:#e0f2fe;color:#0284c7;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;text-transform:uppercase;">
-                                            <span style="width:5px;height:5px;background:#0284c7;border-radius:50%;display:inline-block;"></span>
-                                            EVENT
-                                        </span>
-                                    }
-                                </td>
-                                <td style="padding:10px 16px;color:#374151;font-family:'Courier New',monospace;font-size:11.5px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@item.TagName">@item.TagName</td>
-                                <td style="padding:10px 16px;">
-                                    <span style="font-size:11px;color:#1a73e8;background:#eff6ff;padding:2px 8px;border-radius:12px;font-weight:600;white-space:nowrap;">@item.GroupName</span>
-                                </td>
-                                <td style="padding:10px 16px;text-align:center;">
-                                    <span style="font-size:12px;font-weight:700;color:@(item.Priority >= 500 ? "#dc2626" : item.Priority >= 300 ? "#f59e0b" : "#6b7a8d");">
-                                        @item.Priority
-                                    </span>
-                                </td>
-                                <td style="padding:10px 16px;font-size:12px;color:#374151;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@(cause?.CauseDescription ?? "-")">
-                                    @if (cause != null) { @cause.CauseDescription } else { <span style="color:#d1d5db;">—</span> }
-                                </td>
-                                <td style="padding:10px 16px;font-size:12px;color:#374151;white-space:nowrap;">
-                                    @if (op != null) { @op.UserFullName } else { <span style="color:#d1d5db;">—</span> }
-                                </td>
-                                <td style="padding:10px 16px;font-size:12px;color:#374151;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="@(comment?.CommentText ?? "-")">
-                                    @if (comment != null) { @comment.CommentText } else { <span style="color:#d1d5db;">—</span> }
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="padding:14px 24px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-size:12px;color:#6b7a8d;">
-                    Menampilkan @filtered.Count() dari @dummyData.Count record
-                </span>
-                <span style="font-size:12px;color:#6b7a8d;">
-                    Generated: @DateTime.Now.ToString("dd MMM yyyy, HH:mm")
+        <div style="display:flex;gap:10px;">
+            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 14px;">
+                <span style="font-size:12px;font-weight:600;color:#92400e;">
+                    @alarms.Count(a => a.AlarmState == "UNACK_ALM") Unack
                 </span>
             </div>
-
-        </div>
-
-        <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
-            <h3 style="font-size:14px;font-weight:700;color:#0d1b2a;margin:0 0 16px 0;">Ringkasan Eksekutif — Untuk Pengajuan ke Atasan</h3>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-                <div>
-                    <div style="font-size:12px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Temuan Utama</div>
-                    <ul style="margin:0;padding-left:16px;display:flex;flex-direction:column;gap:8px;">
-                        <li style="font-size:13px;color:#374151;">
-                            Terdapat <strong style="color:#dc2626;">@dummyData.Count(a => a.AlarmState == "UNACK_ALM") alarm kritis</strong> yang belum di-acknowledge oleh operator.
-                        </li>
-                        <li style="font-size:13px;color:#374151;">
-                            Group <strong>@(dummyData.GroupBy(a => a.GroupName).OrderByDescending(g => g.Count()).First().Key)</strong> memiliki frekuensi alarm tertinggi dengan <strong>@dummyData.GroupBy(a => a.GroupName).OrderByDescending(g => g.Count()).First().Count()</strong> kejadian.
-                        </li>
-                        <li style="font-size:13px;color:#374151;">
-                            Sebagian besar alarm disebabkan oleh <strong>@(dummyCauses.FirstOrDefault()?.CauseDescription ?? "faktor mekanis")</strong>.
-                        </li>
-                        <li style="font-size:13px;color:#374151;">
-                            Total <strong>@dummyOperators.Count operator</strong> on-duty terlibat dalam penanganan.
-                        </li>
-                    </ul>
-                </div>
-
-                <div>
-                    <div style="font-size:12px;font-weight:600;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Rekomendasi</div>
-                    <ul style="margin:0;padding-left:16px;display:flex;flex-direction:column;gap:8px;">
-                        <li style="font-size:13px;color:#374151;">Segera lakukan acknowledgement pada @dummyData.Count(a => a.AlarmState == "UNACK_ALM") alarm yang tertunda.</li>
-                        <li style="font-size:13px;color:#374151;">Jadwalkan maintenance preventif untuk group dengan alarm terbanyak.</li>
-                        <li style="font-size:13px;color:#374151;">Tinjau ulang threshold sensor pada zona CIP yang sering memicu false alarm.</li>
-                        <li style="font-size:13px;color:#374151;">Tambah personil shift untuk meningkatkan response time.</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div style="margin-top:24px;padding-top:20px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
-                <div style="font-size:12px;color:#6b7a8d;">
-                    Laporan ini digenerate otomatis oleh sistem CIP Station Alarm Management
-                </div>
-                <div style="display:flex;gap:10px;">
-                    <button style="display:flex;align-items:center;gap:6px;padding:9px 18px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;color:#374151;cursor:pointer;">
-                        <i class="bi bi-printer"></i>
-                        Print
-                    </button>
-                    <button style="display:flex;align-items:center;gap:6px;padding:9px 18px;background:#1a73e8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:white;cursor:pointer;">
-                        <i class="bi bi-send"></i>
-                        Kirim ke Atasan
-                    </button>
-                </div>
+            <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;">
+                <span style="font-size:12px;font-weight:600;color:#991b1b;">
+                    @alarms.Count() Total
+                </span>
             </div>
         </div>
-
     </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#6b7a8d;">TOTAL</div>
+            <div style="font-size:28px;font-weight:800;">@alarms.Count()</div>
+        </div>
+
+        <div style="background:#fff;border-radius:12px;border:1px solid #fca5a5;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#dc2626;">UNACK</div>
+            <div style="font-size:28px;font-weight:800;color:#dc2626;">
+                @alarms.Count(a => a.AlarmState == "UNACK_ALM")
+            </div>
+        </div>
+
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#6b7a8d;">PRIORITY 500</div>
+            <div style="font-size:28px;font-weight:800;color:#f59e0b;">
+                @alarms.Count(a => a.Priority == 500)
+            </div>
+        </div>
+
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#6b7a8d;">GROUPS</div>
+            <div style="font-size:28px;font-weight:800;color:#1a73e8;">
+                @alarms.Select(a => a.GroupName).Distinct().Count()
+            </div>
+        </div>
+    </div>
+
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+        <div style="padding:20px;border-bottom:1px solid #eee;">
+            <h3 style="margin:0;font-size:14px;font-weight:700;">Alarm Log</h3>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+                <tr style="background:#f8fafc;">
+                    <th style="padding:10px;">Time</th>
+                    <th style="padding:10px;">State</th>
+                    <th style="padding:10px;">Tag</th>
+                    <th style="padding:10px;">Group</th>
+                    <th style="padding:10px;">Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in alarms.OrderByDescending(x => x.EventStamp))
+                {
+                    <tr style="background:@(item.AlarmState == "UNACK_ALM" ? "#fff1f1" : "white");">
+                        <td style="padding:10px;">@item.EventStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td style="padding:10px;">@item.AlarmState</td>
+                        <td style="padding:10px;">@item.TagName</td>
+                        <td style="padding:10px;">@item.GroupName</td>
+                        <td style="padding:10px;">@item.Priority</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
 </div>
 
 @code {
+    private List<AlarmData> alarms = new();
 
-    string filterState = "";
-    string filterGroup = "";
-
-    record AlarmRow(int AlarmDetailId, int AlarmId, string AlarmState, DateTime EventStamp, int OperatorId, int? CommentId, string TagName, string GroupName, int Priority, int? CauseId);
-    record OperatorRow(int OperatorId, string UserDomainName, string UserFullName);
-    record CauseRow(int CauseId, string CauseDescription);
-    record CommentRow(int CommentId, string CommentText);
-
-    List<OperatorRow> dummyOperators = new()
+    private class AlarmData
     {
-        new(1, "DESKTOP-RE1\\ahmad.fauzi",  "Ahmad Fauzi"),
-        new(2, "DESKTOP-RE1\\budi.santoso", "Budi Santoso"),
-        new(3, "DESKTOP-RE1\\citra.dewi",   "Citra Dewi"),
-    };
+        public int AlarmDetailId { get; set; }
+        public int AlarmId { get; set; }
+        public string AlarmState { get; set; } = string.Empty;
+        public DateTime EventStamp { get; set; }
+        public string TagName { get; set; } = string.Empty;
+        public string GroupName { get; set; } = string.Empty;
+        public short Priority { get; set; }
+    }
 
-    List<CauseRow> dummyCauses = new()
+    protected override async Task OnInitializedAsync()
     {
-        new(1, "Sensor fault / kalibrasi lepas"),
-        new(2, "Tekanan pipa di luar batas"),
-        new(3, "Motor pump overload"),
-        new(4, "Level tangki kritis"),
-    };
+        await LoadAlarms();
+    }
 
-    List<CommentRow> dummyComments = new()
+    private async Task LoadAlarms()
     {
-        new(1, "Sudah dicek, sensor perlu diganti"),
-        new(2, "Valve manual dibuka sementara"),
-        new(3, "Menunggu spare part"),
-        new(4, "Pump dimatikan untuk inspeksi"),
-        new(5, "False alarm — reset dilakukan"),
-    };
-
-    List<AlarmRow> dummyData = new()
-    {
-        new(1,  101, "UNACK_ALM", new DateTime(2026,3,20,8,41,47), 1, 1, "CIP0_CIP_ZSH5412.FaultAlarm",         "CIP0_CIP_P...",  500, 1),
-        new(2,  102, "UNACK_ALM", new DateTime(2026,3,20,8,41,47), 1, 1, "CIP0_CIP_ZSH5512.FaultAlarm",         "CIP0_CIP_P...",  500, 1),
-        new(3,  103, "EVENT",     new DateTime(2026,3,20,8,7, 6),  2, 5, "CIP0_CIP_ZSH5712.ScanState",          "CIP0_CIP_P...",  999, null),
-        new(4,  104, "EVENT",     new DateTime(2026,3,20,8,7, 6),  2, 5, "CIP0_CIP_ZSH5812.ScanState",          "CIP0_CIP_P...",  999, null),
-        new(5,  105, "EVENT",     new DateTime(2026,3,20,8,7, 6),  2, null,"CIP0_CIP_ZSH5912.ScanState",         "CIP0_CIP_P...",  999, null),
-        new(6,  106, "EVENT",     new DateTime(2026,3,20,8,7, 6),  3, null,"CIP0_CIP00_CP001Station.ScanState",  "CIP0_Com",       999, null),
-        new(7,  107, "UNACK_ALM", new DateTime(2026,3,20,8,41,47), 1, 2, "CIP0_CIP11_QF401_PA_TankEmpty",       "CIP0_CIP_P...",  500, 4),
-        new(8,  108, "UNACK_ALM", new DateTime(2026,3,20,8,41,48), 1, 2, "CIP0_CIP12_QF402_PA_AcidCond",        "CIP0_CIP_P...",  500, 2),
-        new(9,  109, "UNACK_ALM", new DateTime(2026,3,20,8,41,48), 2, 3, "CIP0_CIP12_QF403_PA_AcidTemp",        "CIP0_CIP_P...",  500, 2),
-        new(10, 110, "UNACK_ALM", new DateTime(2026,3,20,8,41,48), 2, 3, "CIP0_CIP21_QF401_PA_TankEmpty",       "CIP0_CIP_P...",  500, 4),
-        new(11, 111, "UNACK_ALM", new DateTime(2026,3,20,8,41,48), 2, 4, "CIP0_CIP22_QF402_PA_LyeCond",         "CIP0_CIP_P...",  500, 2),
-        new(12, 112, "UNACK_ALM", new DateTime(2026,3,20,8,41,48), 3, 4, "CIP0_CIP22_QF403_PA_LyeTemp",         "CIP0_CIP_P...",  500, 2),
-        new(13, 113, "UNACK_ALM", new DateTime(2026,3,20,8,41,48), 3, null,"CIP0_CIP24_QF402_PA_UsedLye",        "CIP0_CIP_P...",  500, 3),
-        new(14, 114, "UNACK_ALM", new DateTime(2026,3,20,8,41,48), 3, null,"CIP0_CIP24_QF403_PA_UsedLye",        "CIP0_CIP_P...",  500, 3),
-        new(15, 115, "EVENT",     new DateTime(2026,3,20,8,7, 6),  1, null,"CIP0_CIP51_RouteA1_Selection",       "CIP0_Route...",  999, null),
-        new(16, 116, "EVENT",     new DateTime(2026,3,20,8,7, 6),  1, null,"CIP0_CIP51_RouteA2_Selection",       "CIP0_Route...",  999, null),
-        new(17, 117, "EVENT",     new DateTime(2026,3,20,8,7, 6),  2, null,"CIP0_CIP51_RouteA3_Selection",       "CIP0_Route...",  999, null),
-        new(18, 118, "EVENT",     new DateTime(2026,3,20,8,7, 6),  2, null,"CIP0_CIP51_RouteB1_Selection",       "CIP0_Route...",  999, null),
-        new(19, 119, "EVENT",     new DateTime(2026,3,20,8,7, 6),  2, null,"CIP0_CIP52_RouteB2_Selection",       "CIP0_Route...",  999, null),
-        new(20, 120, "ACK_ALM",   new DateTime(2026,3,20,8,35,10), 1, 5, "CIP0_CIP53_RouteC1_Selection",        "CIP0_Route...",  300, 1),
-        new(21, 121, "ACK_ALM",   new DateTime(2026,3,20,8,35,22), 3, 5, "CIP0_CIP53_RouteC2_Selection",        "CIP0_Route...",  300, 1),
-        new(22, 122, "ACK_ALM",   new DateTime(2026,3,20,8,36,44), 2, 2, "CIP0_CIP54_RouteD1_Selection",        "CIP0_Route...",  300, 3),
-    };
+        await using var db = await AlarmDbFactory.CreateDbContextAsync();
+        
+        alarms = await db.AlarmDetails
+            .Include(ad => ad.AlarmMaster)
+            .Where(ad => ad.EventStamp >= DateTime.UtcNow.AddDays(-7))
+            .Select(ad => new AlarmData
+            {
+                AlarmDetailId = ad.AlarmDetailId,
+                AlarmId = ad.AlarmId,
+                AlarmState = ad.AlarmState,
+                EventStamp = ad.EventStamp,
+                TagName = ad.AlarmMaster.TagName,
+                GroupName = ad.AlarmMaster.GroupName,
+                Priority = ad.AlarmMaster.Priority
+            })
+            .OrderByDescending(ad => ad.EventStamp)
+            .Take(100)
+            .ToListAsync();
+    }
 }

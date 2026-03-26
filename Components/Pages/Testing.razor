@@ -1,0 +1,265 @@
+@page "/testing"
+@using EmailApp.Models
+@using EmailApp.Data
+@using EmailApp.Services
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AlarmDbContext> AlarmDbFactory
+@inject IDbContextFactory<AppDbContext> AppDbFactory
+@inject IEmailService EmailService
+
+<div style="max-width:800px;margin:0 auto;padding:32px;">
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;">
+        <h2 style="margin:0 0 8px 0;font-size:20px;">Alarm Testing</h2>
+        <p style="color:#6b7a8d;margin-bottom:24px;">Insert alarm manual ke database dan kirim email notifikasi</p>
+
+        @if (!string.IsNullOrEmpty(Message))
+        {
+            <div style="padding:12px;border-radius:8px;margin-bottom:20px;background:@(IsError ? "#fee2e2" : "#e6f4ea");color:@(IsError ? "#c5221f" : "#137333");border:1px solid @(IsError ? "#fcc" : "#b6e6c0");">
+                @Message
+            </div>
+        }
+
+        <div style="display:grid;gap:16px;margin-bottom:24px;">
+            <div>
+                <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;">Alarm ID</label>
+                <input @bind="AlarmId" type="number" style="width:100%;padding:8px 12px;border:1px solid #ccc;border-radius:6px;" />
+            </div>
+            <div>
+                <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;">Alarm State</label>
+                <select @bind="AlarmState" style="width:100%;padding:8px 12px;border:1px solid #ccc;border-radius:6px;">
+                    <option value="UNACK_ALM">UNACK_ALM (Unacknowledged)</option>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="ACK">ACK (Acknowledged)</option>
+                    <option value="RETURN">RETURN</option>
+                </select>
+            </div>
+            <div>
+                <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;">Priority</label>
+                <input @bind="Priority" type="number" style="width:100%;padding:8px 12px;border:1px solid #ccc;border-radius:6px;" />
+            </div>
+        </div>
+
+        <div style="display:flex;gap:12px;">
+            <button @onclick="InsertAndSend" disabled="@IsLoading" style="flex:1;padding:10px;background:#1a73e8;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;">
+                @(IsLoading ? "Processing..." : "Insert & Send Email")
+            </button>
+            <button @onclick="SendToAllEmails" disabled="@IsLoading" style="padding:10px 20px;background:#34a853;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;">
+                Send to All
+            </button>
+        </div>
+    </div>
+
+    <div style="margin-top:24px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;">
+        <h3 style="margin:0 0 16px 0;font-size:16px;">Quick Actions</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            <button @onclick="() => InsertPreset(85)" style="padding:8px 16px;background:#f1f3f4;border:1px solid #dadce0;border-radius:20px;cursor:pointer;">Alarm 85 - Pump5807</button>
+            <button @onclick="() => InsertPreset(83)" style="padding:8px 16px;background:#f1f3f4;border:1px solid #dadce0;border-radius:20px;cursor:pointer;">Alarm 83 - Pump5707</button>
+            <button @onclick="() => InsertPreset(84)" style="padding:8px 16px;background:#f1f3f4;border:1px solid #dadce0;border-radius:20px;cursor:pointer;">Alarm 84 - Pump5793</button>
+            <button @onclick="() => InsertPreset(70)" style="padding:8px 16px;background:#f1f3f4;border:1px solid #dadce0;border-radius:20px;cursor:pointer;">Alarm 70 - Pump1214</button>
+        </div>
+    </div>
+
+    <div style="margin-top:24px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;">
+        <h3 style="margin:0 0 16px 0;font-size:16px;">Recent Alarms (Last 10)</h3>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:8px;text-align:left;">Time</th>
+                        <th style="padding:8px;text-align:left;">State</th>
+                        <th style="padding:8px;text-align:left;">Tag</th>
+                        <th style="padding:8px;text-align:left;">Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (recentAlarms.Any())
+                    {
+                        foreach (var alarm in recentAlarms)
+                        {
+                            <tr>
+                                <td style="padding:8px;">@alarm.EventStamp.ToString("HH:mm:ss")</td>
+                                <td style="padding:8px;">@alarm.AlarmState</td>
+                                <td style="padding:8px;">@alarm.TagName</td>
+                                <td style="padding:8px;">@alarm.Priority</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="4" style="padding:8px;text-align:center;color:#9aa0ab;">No alarms found</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private int AlarmId = 85;
+    private string AlarmState = "UNACK_ALM";
+    private int Priority = 500;
+    private string Message = string.Empty;
+    private bool IsError = false;
+    private bool IsLoading = false;
+    private List<RecentAlarm> recentAlarms = new();
+
+    private class RecentAlarm
+    {
+        public DateTime EventStamp { get; set; }
+        public string AlarmState { get; set; } = string.Empty;
+        public string TagName { get; set; } = string.Empty;
+        public int Priority { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRecentAlarms();
+    }
+
+    private async Task LoadRecentAlarms()
+    {
+        await using var db = await AlarmDbFactory.CreateDbContextAsync();
+        
+        recentAlarms = await db.AlarmDetails
+            .Include(ad => ad.AlarmMaster)
+            .OrderByDescending(ad => ad.EventStamp)
+            .Take(10)
+            .Select(ad => new RecentAlarm
+            {
+                EventStamp = ad.EventStamp,
+                AlarmState = ad.AlarmState,
+                TagName = ad.AlarmMaster.TagName,
+                Priority = ad.AlarmMaster.Priority
+            })
+            .ToListAsync();
+    }
+
+    private async Task InsertPreset(int alarmId)
+    {
+        AlarmId = alarmId;
+        AlarmState = "UNACK_ALM";
+        Priority = 500;
+        await InsertAndSend();
+    }
+
+    private async Task InsertAndSend()
+    {
+        IsLoading = true;
+        Message = string.Empty;
+        IsError = false;
+        StateHasChanged();
+
+        try
+        {
+            await using var alarmDb = await AlarmDbFactory.CreateDbContextAsync();
+            
+            var now = DateTime.UtcNow;
+            
+            var alarmDetail = new AlarmDetail
+            {
+                AlarmId = AlarmId,
+                AlarmState = AlarmState,
+                Priority = (short)Priority,
+                AlarmTransition = "ALM",
+                AlarmType = "DSC",
+                TransitionTime = now,
+                TransitionTimeFracSec = 0,
+                TransitionTimeZoneOffset = 420,
+                TransitionDaylightAdjustment = 0,
+                OperatorName = "System",
+                OperatorNode = "TEST"
+            };
+            
+            await alarmDb.AlarmDetails.AddAsync(alarmDetail);
+            await alarmDb.SaveChangesAsync();
+
+            await using var appDb = await AppDbFactory.CreateDbContextAsync();
+            var recipients = await appDb.Emails.Select(e => e.Address).ToListAsync();
+
+            var alarmMaster = await alarmDb.AlarmMasters.FirstOrDefaultAsync(am => am.AlarmId == AlarmId);
+            var tagName = alarmMaster?.TagName ?? $"Alarm_{AlarmId}";
+            var groupName = alarmMaster?.GroupName ?? "Unknown";
+
+            var subject = $"[TEST] {tagName} - Priority {Priority}";
+            var body = $@"
+TEST ALARM NOTIFICATION
+======================
+Tag: {tagName}
+Group: {groupName}
+Priority: {Priority}
+Time: {now:yyyy-MM-dd HH:mm:ss}
+State: {AlarmState}
+
+This is a test alarm from Testing Page.
+";
+
+            if (recipients.Any())
+            {
+                await EmailService.SendBulkEmailAsync(recipients, subject, body);
+                Message = $"✓ Alarm inserted and email sent to {recipients.Count} recipient(s)";
+            }
+            else
+            {
+                Message = "✓ Alarm inserted but no email recipients found";
+            }
+
+            await LoadRecentAlarms();
+        }
+        catch (Exception ex)
+        {
+            IsError = true;
+            Message = $"✗ Error: {ex.InnerException?.Message ?? ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SendToAllEmails()
+    {
+        IsLoading = true;
+        Message = string.Empty;
+        IsError = false;
+        StateHasChanged();
+
+        try
+        {
+            await using var appDb = await AppDbFactory.CreateDbContextAsync();
+            var recipients = await appDb.Emails.Select(e => e.Address).ToListAsync();
+
+            if (!recipients.Any())
+            {
+                Message = "No email recipients found";
+                IsError = true;
+                return;
+            }
+
+            var subject = "[TEST] Manual Email Test";
+            var body = $@"
+MANUAL TEST EMAIL
+================
+This is a manual test email sent from Testing Page.
+Time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}
+
+If you receive this, the email service is working correctly.
+";
+
+            await EmailService.SendBulkEmailAsync(recipients, subject, body);
+            Message = $"✓ Test email sent to {recipients.Count} recipient(s)";
+        }
+        catch (Exception ex)
+        {
+            IsError = true;
+            Message = $"✗ Error: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+}
