@@ -1,38 +1,42 @@
 using Microsoft.EntityFrameworkCore;
+using EmailApp.Models;
 
-public class AppDbContext : DbContext
+namespace EmailApp.Data
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) {}
-
-    public DbSet<User> Users { get; set; }
-    public DbSet<Email> Emails { get; set; }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    public class AppDbContext : DbContext
     {
-        modelBuilder.Entity<User>(entity =>
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
         {
-            entity.HasKey(u => u.Id);
-            entity.Property(u => u.Id)
-                .HasDefaultValueSql("NEWSEQUENTIALID()");
-            entity.HasIndex(u => u.Username)
-                .IsUnique();
-            entity.Property(u => u.Username)
-                .IsRequired()
-                .HasMaxLength(100);
-            entity.Property(u => u.Password)
-                .IsRequired()
-                .HasMaxLength(500);
-            entity.Property(u => u.IsAdmin)
-                .IsRequired();
-        });
+        }
         
-        modelBuilder.Entity<Email>(entity =>
+        public DbSet<AlarmDetail> AlarmDetails { get; set; }
+        public DbSet<AlarmMaster> AlarmMasters { get; set; }
+        public DbSet<Email> Emails { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<UserGroup> UserGroups { get; set; }
+        
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            entity.HasKey(u => u.Id);
-            entity.Property(u => u.Id)
-                .HasDefaultValueSql("NEWSEQUENTIALID()");
-            entity.HasIndex(u => u.Address)
+            base.OnModelCreating(modelBuilder);
+            
+            modelBuilder.Entity<UserGroup>()
+                .HasKey(ug => new { ug.UserId, ug.GroupId });
+            
+            modelBuilder.Entity<UserGroup>()
+                .HasOne(ug => ug.User)
+                .WithMany(u => u.UserGroups)
+                .HasForeignKey(ug => ug.UserId);
+                
+            modelBuilder.Entity<UserGroup>()
+                .HasOne(ug => ug.Group)
+                .WithMany(g => g.UserGroups)
+                .HasForeignKey(ug => ug.GroupId);
+            
+            modelBuilder.Entity<Group>()
+                .HasIndex(g => g.Name)
                 .IsUnique();
-        });
+        }
     }
 }

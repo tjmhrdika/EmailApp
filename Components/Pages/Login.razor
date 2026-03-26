@@ -1,5 +1,11 @@
 @page "/login"
+@using EmailApp.Models
+@using EmailApp.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
 @inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
 
 @if (isLoggedIn)
 {
@@ -9,7 +15,6 @@ else
 {
     <div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f3f6;padding:16px;">
         <div style="background:#ffffff;border-radius:14px;border:1px solid #e8eaed;padding:36px 32px;width:100%;max-width:400px;">
-
             <div style="text-align:center;margin-bottom:28px;">
                 <div style="width:44px;height:44px;background:#f0f4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px auto;">
                     <i class="bi bi-shield-lock" style="font-size:20px;color:#1a73e8;"></i>
@@ -20,7 +25,6 @@ else
 
             <EditForm Model="user" OnValidSubmit="LoginUser">
                 <DataAnnotationsValidator />
-
                 <div style="margin-bottom:16px;">
                     <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Username</label>
                     <InputText @bind-Value="user.Username"
@@ -48,21 +52,20 @@ else
                     Masuk
                 </button>
             </EditForm>
-
         </div>
     </div>
 }
 
 @code {
-    User user = new User();
-    string token = String.Empty;
-    string usernameMessage = String.Empty;
-    string passwordMessage = String.Empty;
-    bool isLoggedIn = false;
+    private User user = new User();
+    private string token = string.Empty;
+    private string usernameMessage = string.Empty;
+    private string passwordMessage = string.Empty;
+    private bool isLoggedIn = false;
 
-    class TokenResponse
+    private class TokenResponse
     {
-        public string token { get; set; } = String.Empty;
+        public string token { get; set; } = string.Empty;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -74,34 +77,32 @@ else
         StateHasChanged();
     }
 
-    async Task LoginUser()
+    private async Task LoginUser()
     {
-        User? checkUser = db.Users.FirstOrDefault(u => u.Username == user.Username);
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var checkUser = await db.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
+        
         if (checkUser == null)
         {
             usernameMessage = "Username not found";
-            passwordMessage = String.Empty;
+            passwordMessage = string.Empty;
             return;
         }
+        
         if (!BCrypt.Net.BCrypt.Verify(user.Password, checkUser.Password))
         {
-            usernameMessage = String.Empty;
+            usernameMessage = string.Empty;
             passwordMessage = "Wrong password";
             return;
         }
 
-        HttpResponseMessage? response = await Http.PostAsJsonAsync("api/auth/login", checkUser);
+        var response = await Http.PostAsJsonAsync("api/auth/login", new { checkUser.Username, Password = user.Password });
+        
         if (response.IsSuccessStatusCode)
         {
-            TokenResponse? result = await response.Content.ReadFromJsonAsync<TokenResponse>();
+            var result = await response.Content.ReadFromJsonAsync<TokenResponse>();
             await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result?.token);
             NavigationManager.NavigateTo("/", true);
         }
-    }
-
-    async Task Logout()
-    {
-        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
-        NavigationManager.NavigateTo("/", true);
     }
 }
