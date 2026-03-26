@@ -1,7 +1,8 @@
 ﻿@page "/"
-
-@using System.Collections.Generic
-@using System.Linq
+@using EmailApp.Models
+@using EmailApp.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AlarmDbContext> AlarmDbFactory
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -16,49 +17,46 @@
         <div style="display:flex;gap:10px;">
             <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 14px;">
                 <span style="font-size:12px;font-weight:600;color:#92400e;">
-                    @dummyData.Count(a => a.AlarmState == "UNACK_ALM") Unack
+                    @alarms.Count(a => a.AlarmState == "UNACK_ALM") Unack
                 </span>
             </div>
             <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;">
                 <span style="font-size:12px;font-weight:600;color:#991b1b;">
-                    @dummyData.Count() Total
+                    @alarms.Count() Total
                 </span>
             </div>
         </div>
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-
         <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
             <div style="font-size:11px;font-weight:700;color:#6b7a8d;">TOTAL</div>
-            <div style="font-size:28px;font-weight:800;">@dummyData.Count()</div>
+            <div style="font-size:28px;font-weight:800;">@alarms.Count()</div>
         </div>
 
         <div style="background:#fff;border-radius:12px;border:1px solid #fca5a5;padding:20px;">
             <div style="font-size:11px;font-weight:700;color:#dc2626;">UNACK</div>
             <div style="font-size:28px;font-weight:800;color:#dc2626;">
-                @dummyData.Count(a => a.AlarmState == "UNACK_ALM")
+                @alarms.Count(a => a.AlarmState == "UNACK_ALM")
             </div>
         </div>
 
         <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
             <div style="font-size:11px;font-weight:700;color:#6b7a8d;">PRIORITY 500</div>
             <div style="font-size:28px;font-weight:800;color:#f59e0b;">
-                @dummyData.Count(a => a.Priority == 500)
+                @alarms.Count(a => a.Priority == 500)
             </div>
         </div>
 
         <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
             <div style="font-size:11px;font-weight:700;color:#6b7a8d;">GROUPS</div>
             <div style="font-size:28px;font-weight:800;color:#1a73e8;">
-                @dummyData.Select(a => a.GroupName).Distinct().Count()
+                @alarms.Select(a => a.GroupName).Distinct().Count()
             </div>
         </div>
-
     </div>
 
     <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-
         <div style="padding:20px;border-bottom:1px solid #eee;">
             <h3 style="margin:0;font-size:14px;font-weight:700;">Alarm Log</h3>
         </div>
@@ -74,10 +72,10 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var item in dummyData.OrderByDescending(x => x.EventStamp))
+                @foreach (var item in alarms.OrderByDescending(x => x.EventStamp))
                 {
                     <tr style="background:@(item.AlarmState == "UNACK_ALM" ? "#fff1f1" : "white");">
-                        <td style="padding:10px;">@item.EventStamp.ToString("HH:mm:ss")</td>
+                        <td style="padding:10px;">@item.EventStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
                         <td style="padding:10px;">@item.AlarmState</td>
                         <td style="padding:10px;">@item.TagName</td>
                         <td style="padding:10px;">@item.GroupName</td>
@@ -86,23 +84,48 @@
                 }
             </tbody>
         </table>
-
     </div>
-
 </div>
-
-
 </div>
 
 @code {
+    private List<AlarmData> alarms = new();
 
-record AlarmRow(int AlarmDetailId, int AlarmId, string AlarmState, DateTime EventStamp, int OperatorId, int? CommentId, string TagName, string GroupName, int Priority, int? CauseId);
+    private class AlarmData
+    {
+        public int AlarmDetailId { get; set; }
+        public int AlarmId { get; set; }
+        public string AlarmState { get; set; } = string.Empty;
+        public DateTime EventStamp { get; set; }
+        public string TagName { get; set; } = string.Empty;
+        public string GroupName { get; set; } = string.Empty;
+        public short Priority { get; set; }
+    }
 
-List<AlarmRow> dummyData = new()
-{
-    new(1,101,"UNACK_ALM",DateTime.Now.AddMinutes(-5),1,1,"Pump Fault","CIP_A",500,1),
-    new(2,102,"UNACK_ALM",DateTime.Now.AddMinutes(-3),1,1,"Valve Error","CIP_A",500,1),
-    new(3,103,"ACK_ALM",DateTime.Now.AddMinutes(-10),2,2,"Temp High","CIP_B",300,2),
-    new(4,104,"EVENT",DateTime.Now.AddMinutes(-1),2,null,"Flow Scan","CIP_C",100,null)
-};
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAlarms();
+    }
+
+    private async Task LoadAlarms()
+    {
+        await using var db = await AlarmDbFactory.CreateDbContextAsync();
+        
+        alarms = await db.AlarmDetails
+            .Include(ad => ad.AlarmMaster)
+            .Where(ad => ad.EventStamp >= DateTime.UtcNow.AddDays(-7))
+            .Select(ad => new AlarmData
+            {
+                AlarmDetailId = ad.AlarmDetailId,
+                AlarmId = ad.AlarmId,
+                AlarmState = ad.AlarmState,
+                EventStamp = ad.EventStamp,
+                TagName = ad.AlarmMaster.TagName,
+                GroupName = ad.AlarmMaster.GroupName,
+                Priority = ad.AlarmMaster.Priority
+            })
+            .OrderByDescending(ad => ad.EventStamp)
+            .Take(100)
+            .ToListAsync();
+    }
 }

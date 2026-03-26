@@ -2,6 +2,7 @@
 @using EmailApp.Models
 @using EmailApp.Data
 @using Microsoft.EntityFrameworkCore
+@inject AuthenticationStateProvider AuthProvider
 @inject IDbContextFactory<AppDbContext> DbFactory
 @inject HttpClient Http
 @inject IJSRuntime JS

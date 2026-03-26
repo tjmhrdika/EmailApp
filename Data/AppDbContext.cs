@@ -13,9 +13,10 @@ namespace EmailApp.Data
         public DbSet<AlarmDetail> AlarmDetails { get; set; }
         public DbSet<AlarmMaster> AlarmMasters { get; set; }
         public DbSet<Email> Emails { get; set; }
-        public DbSet<User> Users { get; set; }
         public DbSet<Group> Groups { get; set; }
         public DbSet<UserGroup> UserGroups { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<AlarmEmailTracking> AlarmEmailTracking { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -37,6 +38,14 @@ namespace EmailApp.Data
             modelBuilder.Entity<Group>()
                 .HasIndex(g => g.Name)
                 .IsUnique();
+            
+            modelBuilder.Entity<AlarmEmailTracking>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.ToTable("AlarmEmailTracking");
+                entity.Property(e => e.EmailSent).HasDefaultValue(false);
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            });
         }
     }
 }
