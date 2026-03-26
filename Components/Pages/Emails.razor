@@ -139,26 +139,6 @@
         }
     </div>
 </div>
-    @* @foreach (Email e in emails)
-    {
-        <div class="col">
-            <div class="card p-2 d-flex flex-row justify-content-between align-items-center">
-
-                <InputText @bind-Value="e.Address" class="form-control me-2"
-                           disabled="@(e.Id != editingEmailId)" />
-
-                <button class="btn btn-primary btn-sm me-2"
-                        @onclick="() => ToggleEdit(e)">
-                    <i class="bi @(e.Id == editingEmailId ? "bi-check-lg" : "bi-pencil")"></i>
-                </button>
-
-                <button class="btn btn-danger btn-sm"
-                        @onclick="() => DeleteOrCancel(e)">
-                    <i class="bi @(editingEmailId == e.Id ? "bi-x" : "bi-trash")"></i>
-                </button>               
-            </div>
-        </div>
-    } *@
 
 @code {
     bool isAdmin = false;
@@ -166,11 +146,13 @@
     string message = String.Empty;
     List<Email> emails = new List<Email>();
     Guid? editingEmailId = null;
+    string tempEmail = String.Empty;
 
     EmailGroup group = new();
     List<EmailGroup> groups = new();
 
     Guid? editingGroupId = null;
+    string tempGroup = String.Empty;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -221,6 +203,7 @@
         if(editingEmailId == e.Id)
         {
             editingEmailId = null;
+            e.Address = tempEmail;
         }
         else
         {
@@ -237,10 +220,17 @@
             db.Emails.Update(e);
             await db.SaveChangesAsync();
             editingEmailId = null;
+            tempEmail = String.Empty;
         }
         else
         {
+            if(editingEmailId != null)
+            {
+                var prev = emails.First(x => x.Id == editingEmailId);
+                prev.Address = tempEmail;
+            }
             editingEmailId = e.Id;
+            tempEmail = e.Address;
         }
     }
 
@@ -260,10 +250,17 @@
             db.EmailGroups.Update(g);
             await db.SaveChangesAsync();
             editingGroupId = null;
+            tempGroup = String.Empty;
         }
         else
         {
+            if(editingGroupId != null)
+            {
+                var prev = groups.First(x => x.Id == editingGroupId);
+                prev.Name = tempGroup;
+            }
             editingGroupId = g.Id;
+            tempGroup = g.Name;            
         }
     }
 
@@ -271,6 +268,7 @@
     {
         if (editingGroupId == g.Id) {
             editingGroupId = null;
+            g.Name = tempGroup;
         }
         else
         {

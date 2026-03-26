@@ -26,27 +26,46 @@
             
                     <div class="mb-3">
                         <label class="form-label">SMTP</label>
-                        <InputText class="form-control" @bind-Value="setSmtp.Smtp" />
+                        <InputText class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.Smtp" />
                         <ValidationMessage For="@(() => setSmtp.Smtp)" />
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Email</label>
-                        <InputText type="email" class="form-control" @bind-Value="setSmtp.Email" />
+                        <InputText type="email" class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.Email" />
                         <ValidationMessage For="@(() => setSmtp.Email)" />
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <InputText type="password" class="form-control" @bind-Value="setSmtp.Password" />
+                        <InputText type="password" class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.Password" />
                         <ValidationMessage For="@(() => setSmtp.Password)" />
                     </div>
 
-                    <div class="d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
-                            <i class="bi bi-pencil"></i>
-                            Edit
-                        </button>
+                    <div class="d-flex justify-content-end gap-2">
+                        @if (isEdit)
+                        {
+                            <button type="submit" class="btn btn-success d-flex align-items-center gap-2">
+                                <i class="bi bi-check-lg"></i>
+                                OK
+                            </button>
+
+                            <button type="button"
+                                    class="btn btn-secondary d-flex align-items-center gap-2"
+                                    @onclick="CancelEdit">
+                                <i class="bi bi-x"></i>
+                                Cancel
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button"
+                                    class="btn btn-primary d-flex align-items-center gap-2"
+                                    @onclick="BeginEdit">
+                                <i class="bi bi-pencil"></i>
+                                Edit
+                            </button>
+                        }
                     </div>
                 </EditForm>
             </div>
@@ -59,16 +78,16 @@
 
                 <div class="mb-3">
                     <label class="form-label">To Email</label>
-                    <input type="email" class="form-control" @bind="toEmail">
+                    <input type="email" class="form-control" @bind="toEmail" disabled=@(isEdit)>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Text</label>
-                    <textarea type="email" class="form-control" rows="4" @bind="text"></textarea>
+                    <textarea type="email" class="form-control" rows="4" @bind="text" disabled=@(isEdit)></textarea>
                 </div>
 
                 <div class="d-flex justify-content-end">
-                    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" @onclick=Send>
+                    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2" @onclick=Send disabled=@(isEdit)>
                         <i class="bi bi-send"></i>
                         Send
                     </button>
@@ -80,7 +99,9 @@
 </div>
 
 @code {
+    bool isEdit = false;
     SetSmtp setSmtp = new();
+    SetSmtp tempSetSmtp = new();
     string toEmail = String.Empty;
     string text = String.Empty;
     string alertMessage = String.Empty;
@@ -116,6 +137,28 @@
     {
         db.SetSmtp.Update(setSmtp);
         await db.SaveChangesAsync();
+    }
+
+    void BeginEdit()
+    {
+        tempSetSmtp = new SetSmtp
+        {
+            Smtp = setSmtp.Smtp,
+            Email = setSmtp.Email,
+            Password = setSmtp.Password
+        };
+        isEdit = true;
+    }
+
+    void CancelEdit()
+    {
+        setSmtp = new SetSmtp
+        {
+            Smtp = tempSetSmtp.Smtp,
+            Email = tempSetSmtp.Email,
+            Password = tempSetSmtp.Password
+        };;
+        isEdit = false;
     }
 
     void Send()
