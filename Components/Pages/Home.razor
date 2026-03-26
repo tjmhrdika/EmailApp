@@ -6,86 +6,73 @@
 
 <PageTitle>Dashboard</PageTitle>
 
-<div style="font-family:'Segoe UI',sans-serif;min-height:100vh;background:#f0f2f5;padding:28px 32px;">
-<div style="max-width:1200px;margin:0 auto;">
+<div style="max-width-100px;">
+    <div style="margin-bottom:28px;">
+        <h2 style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Dashboard</h2>
+        <p style="font-size:13px;color:#9aa0ab;margin:0;">CIP Station - Laporan Pengajuan Alarm</p>
+    </div>
 
-    <div style="margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;">
-        <div>
-            <h1 style="font-size:22px;font-weight:700;color:#0d1b2a;margin:0;">Alarm Incident Report</h1>
-            <p style="font-size:13px;color:#6b7a8d;">CIP Station - Laporan Pengajuan Alarm</p>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Total</div>
+            <div style="font-size:28px;font-weight:800;color:#1a1a2e;">@alarms.Count()</div>
         </div>
-        <div style="display:flex;gap:10px;">
-            <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:8px 14px;">
-                <span style="font-size:12px;font-weight:600;color:#92400e;">
+        <div style="background:#fff;border-radius:12px;border:1px solid #fca5a5;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Unack</div>
+            <div style="font-size:28px;font-weight:800;color:#dc2626;">@alarms.Count(a => a.AlarmState == "UNACK_ALM")</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Priority 500</div>
+            <div style="font-size:28px;font-weight:800;color:#f59e0b;">@alarms.Count(a => a.Priority == 500)</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Groups</div>
+            <div style="font-size:28px;font-weight:800;color:#1a73e8;">@alarms.Select(a => a.GroupName).Distinct().Count()</div>
+        </div>
+    </div>
+
+    <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;overflow:hidden;">
+        <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
+            <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0;">Alarm Log</h5>
+            <div style="display:flex;gap:8px;">
+                <span style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;color:#92400e;">
                     @alarms.Count(a => a.AlarmState == "UNACK_ALM") Unack
                 </span>
-            </div>
-            <div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 14px;">
-                <span style="font-size:12px;font-weight:600;color:#991b1b;">
+                <span style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;color:#991b1b;">
                     @alarms.Count() Total
                 </span>
             </div>
         </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#6b7a8d;">TOTAL</div>
-            <div style="font-size:28px;font-weight:800;">@alarms.Count()</div>
-        </div>
-
-        <div style="background:#fff;border-radius:12px;border:1px solid #fca5a5;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#dc2626;">UNACK</div>
-            <div style="font-size:28px;font-weight:800;color:#dc2626;">
-                @alarms.Count(a => a.AlarmState == "UNACK_ALM")
-            </div>
-        </div>
-
-        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#6b7a8d;">PRIORITY 500</div>
-            <div style="font-size:28px;font-weight:800;color:#f59e0b;">
-                @alarms.Count(a => a.Priority == 500)
-            </div>
-        </div>
-
-        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#6b7a8d;">GROUPS</div>
-            <div style="font-size:28px;font-weight:800;color:#1a73e8;">
-                @alarms.Select(a => a.GroupName).Distinct().Count()
-            </div>
-        </div>
-    </div>
-
-    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-        <div style="padding:20px;border-bottom:1px solid #eee;">
-            <h3 style="margin:0;font-size:14px;font-weight:700;">Alarm Log</h3>
-        </div>
-
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead>
-                <tr style="background:#f8fafc;">
-                    <th style="padding:10px;">Time</th>
-                    <th style="padding:10px;">State</th>
-                    <th style="padding:10px;">Tag</th>
-                    <th style="padding:10px;">Group</th>
-                    <th style="padding:10px;">Priority</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var item in alarms.OrderByDescending(x => x.EventStamp))
-                {
-                    <tr style="background:@(item.AlarmState == "UNACK_ALM" ? "#fff1f1" : "white");">
-                        <td style="padding:10px;">@item.EventStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                        <td style="padding:10px;">@item.AlarmState</td>
-                        <td style="padding:10px;">@item.TagName</td>
-                        <td style="padding:10px;">@item.GroupName</td>
-                        <td style="padding:10px;">@item.Priority</td>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Time</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">State</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Tag</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Group</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Priority</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var item in alarms.OrderByDescending(x => x.EventStamp))
+                    {
+                        <tr style="border-top:1px solid #f0f0f0;background:@(item.AlarmState == "UNACK_ALM" ? "#fff8f8" : "white");">
+                            <td style="padding:12px 16px;color:#5f6368;font-size:13px;">@item.EventStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td style="padding:12px 16px;">
+                                <span style="background:@(item.AlarmState == "UNACK_ALM" ? "#fee2e2" : "#f4f6f9");color:@(item.AlarmState == "UNACK_ALM" ? "#dc2626" : "#5f6368");padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;">
+                                    @item.AlarmState
+                                </span>
+                            </td>
+                            <td style="padding:12px 16px;color:#1a1a2e;font-weight:500;">@item.TagName</td>
+                            <td style="padding:12px 16px;color:#5f6368;">@item.GroupName</td>
+                            <td style="padding:12px 16px;color:@(item.Priority == 500 ? "#f59e0b" : "#1a1a2e");font-weight:@(item.Priority == 500 ? "700" : "400");">@item.Priority</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
-</div>
 </div>
 
 @code {
@@ -110,7 +97,7 @@
     private async Task LoadAlarms()
     {
         await using var db = await AlarmDbFactory.CreateDbContextAsync();
-        
+
         alarms = await db.AlarmDetails
             .Include(ad => ad.AlarmMaster)
             .Where(ad => ad.EventStamp >= DateTime.UtcNow.AddDays(-7))
