@@ -1,6 +1,8 @@
-﻿@using System.IdentityModel.Tokens.Jwt
+﻿@using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthProvider
 
 <div style="width:256px;height:100vh;background:#ffffff;border-right:1px solid #e8eaed;display:flex;flex-direction:column;position:fixed;top:0;left:0;">
 
@@ -37,19 +39,16 @@
                 <i class="bi bi-person-fill" style="color:#5f6368;font-size:15px;"></i>
             </div>
             <div>
-                <div style="font-size:13px;font-weight:600;color:#1a1a2e;">Admin</div>
-                <div style="font-size:11px;color:#9aa0ab;">Administrator</div>
+                <div style="font-size:13px;font-weight:600;color:#1a1a2e;">@username</div>
+                <div style="font-size:11px;color:#9aa0ab;">@(isAdmin ? "Administrator" : "User")</div>
             </div>
         </div>
         <div style="margin-top:2px;">
-            <a href="settings" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:#5f6368;font-size:13px;">
-                <i class="bi bi-gear" style="font-size:15px;width:18px;"></i>
-                Settings
-            </a>
-            <a href="logout" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:#5f6368;font-size:13px;">
+            <button @onclick="Logout"
+                    style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:#5f6368;font-size:13px;background:none;border:none;cursor:pointer;">
                 <i class="bi bi-box-arrow-right" style="font-size:15px;width:18px;"></i>
                 Log out
-            </a>
+            </button>
         </div>
     </div>
 
@@ -57,13 +56,38 @@
 
 @code {
     [Parameter] public EventCallback OnClose { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthStateTask { get; set; }
 
-    bool isAdmin = false;
+    private bool isAdmin = false;
+    private string username = "User";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthStateTask is null) return;
+
+        var authState = await AuthStateTask;
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            isAdmin = user.IsInRole("Admin");
+            username = user.Identity.Name ?? "User";
+        }
+    }
+
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+
+        if (AuthProvider is CustomAuthenticationStateProvider customProvider)
+            customProvider.NotifyUserLogout();
+
+        NavigationManager.NavigateTo("/login", true);
+    }
 
     RenderFragment NavItem(string href, string icon, string text, bool matchAll = false, bool isAlert = false) => builder =>
     {
         var i = 0;
-
         builder.OpenComponent<NavLink>(i++);
         builder.AddAttribute(i++, "href", href);
         if (matchAll)
@@ -71,7 +95,6 @@
         builder.AddAttribute(i++, "ActiveClass", "nav-active");
         builder.AddAttribute(i++, "style",
             $"display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;text-decoration:none;color:{(isAlert ? "#e53935" : "#5f6368")};font-size:13.5px;font-weight:500;margin-bottom:2px;");
-
         builder.AddAttribute(i++, "ChildContent", (RenderFragment)(b =>
         {
             var j = 0;
@@ -81,24 +104,6 @@
             b.CloseElement();
             b.AddContent(j++, text);
         }));
-
         builder.CloseComponent();
     };
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-
-        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-        if (string.IsNullOrEmpty(token)) return;
-
-        var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
-        var role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-
-        if (role == "Admin")
-        {
-            isAdmin = true;
-            StateHasChanged();
-        }
-    }
 }
