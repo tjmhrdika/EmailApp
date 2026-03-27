@@ -13,42 +13,39 @@
         <h2 style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Users</h2>
         <p style="font-size:13px;color:#9aa0ab;margin:0;">Manage user accounts and permissions</p>
     </div>
+    @if (isAdmin)
+    {
+        <EditForm Model="newUser" OnValidSubmit="AddUser">
+            <DataAnnotationsValidator />
+            <div style="background:#ffffff;border-radius:12px;border:1px solid #e8eaed;padding:24px;margin-bottom:28px;">
+                <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0 0 20px 0;">Add New User</h5>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:16px;align-items:end;">
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Username</label>
+                        <InputText @bind-Value="newUser.Username" style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
+                        <ValidationMessage For="@(() => newUser.Username)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
+                        @if (!string.IsNullOrEmpty(message))
+                        {
+                            <span style="font-size:12px;color:#e53935;margin-top:4px;display:block;">@message</span>
+                        }
+                    </div>
 
-    <EditForm Model="newUser" OnValidSubmit="AddUser">
-        <DataAnnotationsValidator />
-        <div style="background:#ffffff;border-radius:12px;border:1px solid #e8eaed;padding:24px;margin-bottom:28px;">
-            <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0 0 20px 0;">Add New User</h5>
-            <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:16px;align-items:end;">
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Username</label>
-                    <InputText @bind-Value="newUser.Username" style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
-                    <ValidationMessage For="@(() => newUser.Username)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
-                    @if (!string.IsNullOrEmpty(message))
-                    {
-                        <span style="font-size:12px;color:#e53935;margin-top:4px;display:block;">@message</span>
-                    }
-                </div>
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Password</label>
+                        <InputText @bind-Value="newUser.Password" type="password" style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
+                        <ValidationMessage For="@(() => newUser.Password)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
+                    </div>
 
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Password</label>
-                    <InputText @bind-Value="newUser.Password" type="password" style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;box-sizing:border-box;" />
-                    <ValidationMessage For="@(() => newUser.Password)" style="font-size:12px;color:#e53935;margin-top:4px;display:block;" />
-                </div>
-
-                <div style="display:flex;align-items:center;gap:8px;padding-bottom:2px;">
-                    <InputCheckbox @bind-Value="newUser.IsAdmin" style="width:16px;height:16px;accent-color:#1a73e8;cursor:pointer;" />
-                    <label style="font-size:13.5px;color:#5f6368;font-weight:500;white-space:nowrap;">Is Admin</label>
-                </div>
-
-                <div>
-                    <button type="submit" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">
-                        <i class="bi bi-plus-lg" style="font-size:14px;"></i>
-                        Add User
-                    </button>
+                    <div>
+                        <button type="submit" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                            <i class="bi bi-plus-lg" style="font-size:14px;"></i>
+                            Add User
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    </EditForm>
+        </EditForm>
+    }
 
     <div style="background:#ffffff;border-radius:12px;border:1px solid #e8eaed;">
         <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
@@ -68,7 +65,7 @@
                             <div style="font-size:12px;color:#9aa0ab;">@(u.IsAdmin ? "Administrator" : "User")</div>
                         </div>
                     </div>
-                    @if (u.Username != "user")
+                    @if (isAdmin && !u.IsAdmin)
                     {
                         <button @onclick="() => DeleteUser(u)" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:#fff0f0;color:#e53935;border:1px solid #ffd6d6;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;">
                             <i class="bi bi-trash" style="font-size:13px;"></i>
@@ -82,28 +79,30 @@
 </div>
 
 @code {
+    bool isAdmin = false;
     private User newUser = new User();
     private string message = string.Empty;
     private List<User> users = new List<User>();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
-
-        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-        if (string.IsNullOrEmpty(token))
+        if (firstRender)
         {
-            NavigationManager.NavigateTo("/");
-            return;
-        }
+            string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                NavigationManager.NavigateTo("/");
+                return;
+            }
 
-        var handler = new JwtSecurityTokenHandler();
-        var jwt = handler.ReadJwtToken(token);
-        var role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-        
-        if (role != "Admin")
-        {
-            NavigationManager.NavigateTo("/");
+            JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+            JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+            string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (role == "Admin")
+            {
+                isAdmin = true;
+                StateHasChanged();
+            }
         }
     }
 
