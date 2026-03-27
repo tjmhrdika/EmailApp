@@ -17,6 +17,8 @@ namespace EmailApp.Data
         public DbSet<UserGroup> UserGroups { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<AlarmEmailTracking> AlarmEmailTracking { get; set; }
+        public DbSet<EmailGroup> EmailGroups { get; set; }
+        public DbSet<SetSmtp> SetSmtp { get; set; }
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -46,6 +48,18 @@ namespace EmailApp.Data
                 entity.Property(e => e.EmailSent).HasDefaultValue(false);
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
             });
+            
+            modelBuilder.Entity<SetSmtp>().HasData(
+                new SetSmtp
+                {
+                    Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    Host = "",
+                    Port = 0,
+                    User = "",
+                    Pass = "",
+                    FromEmail = ""
+                }
+            );
         }
     }
 }
