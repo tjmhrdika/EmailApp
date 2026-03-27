@@ -4,18 +4,7 @@
 <div style="width:240px;height:100vh;background:#ffffff;border-right:1px solid #e8eaed;display:flex;flex-direction:column;position:fixed;top:0;left:0;">
 
     <div style="padding:20px 20px 16px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f0f0f0;">
-        @* <div style="width:32px;height:32px;background:#1a73e8;border-radius:8px;display:flex;align-items:center;justify-content:center;">
-            <i class="bi bi-envelope-fill" style="color:white;font-size:15px;"></i>
-        </div>
-        <span style="font-size:17px;font-weight:700;color:#1a1a2e;letter-spacing:-0.3px;">AlarmEmailApp</span> *@
         <img src="/logo-w-caption.png" style="height:40px;" />
-    </div>
-
-    <div style="padding:12px 12px 0 12px;">
-        <div style="display:flex;align-items:center;background:#f4f6f9;border-radius:8px;padding:8px 12px;gap:8px;">
-            <i class="bi bi-search" style="color:#9aa0ab;font-size:13px;"></i>
-            <span style="font-size:13px;color:#9aa0ab;">Search</span>
-        </div>
     </div>
 
     <div style="flex:1;padding:8px 12px;overflow-y:auto;margin-top:8px;">
@@ -26,7 +15,7 @@
             @NavItem("emails", "bi-at", "Emails")
             @if (isAdmin)
             {
-                @NavItem("send-email", "bi-send", "Send Email")
+                @NavItem("smtp", "bi-send", "SMTP")
             }   
         }
     </div>
@@ -42,10 +31,6 @@
             </div>
         </div>
         <div style="margin-top:4px;">
-            <a href="settings" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:#5f6368;font-size:13px;">
-                <i class="bi bi-gear" style="font-size:15px;width:18px;"></i>
-                Settings
-            </a>
             @if (isLoggedIn)
             {
                 <a href="" @onclick="Logout" style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:#5f6368;font-size:13px;">

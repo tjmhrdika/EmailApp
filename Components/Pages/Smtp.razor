@@ -1,4 +1,4 @@
-@page "/send-email"
+@page "/smtp"
 @using System.Net
 @using System.Net.Mail
 @using System.IdentityModel.Tokens.Jwt
@@ -137,27 +137,18 @@
     {
         db.SetSmtp.Update(setSmtp);
         await db.SaveChangesAsync();
+        isEdit = false;
     }
 
     void BeginEdit()
     {
-        tempSetSmtp = new SetSmtp
-        {
-            Smtp = setSmtp.Smtp,
-            Email = setSmtp.Email,
-            Password = setSmtp.Password
-        };
+        tempSetSmtp = setSmtp.Clone();
         isEdit = true;
     }
 
     void CancelEdit()
     {
-        setSmtp = new SetSmtp
-        {
-            Smtp = tempSetSmtp.Smtp,
-            Email = tempSetSmtp.Email,
-            Password = tempSetSmtp.Password
-        };;
+        setSmtp = tempSetSmtp.Clone();
         isEdit = false;
     }
 
@@ -165,21 +156,20 @@
     {
         try
         {
-            SetSmtp currentSetSmtp = db.SetSmtp.First();
             
-            SmtpClient? smtp = new SmtpClient(currentSetSmtp.Smtp)
+            SmtpClient? smtp = new SmtpClient(setSmtp.Smtp)
             {
                 Port = 587,
                 Credentials = new NetworkCredential(
-                    currentSetSmtp.Email,
-                    currentSetSmtp.Password
+                    setSmtp.Email,
+                    setSmtp.Password
                 ),
                 EnableSsl = true
             };
 
             MailMessage? mail = new MailMessage
             {
-                From = new MailAddress(currentSetSmtp.Email),
+                From = new MailAddress(setSmtp.Email),
                 Subject = "Alarm Notification",
                 Body = text,
             };
