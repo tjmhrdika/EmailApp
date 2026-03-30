@@ -1,76 +1,86 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using System.IdentityModel.Tokens.Jwt;
-using System.Text;
 using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+using EmailApp.Data;
+using EmailApp.Models;
 
-
-[ApiController]
-[Route("api/[controller]")]
-public class AuthController : Controller
+namespace EmailApp.Controllers
 {
-    private readonly AppDbContext _db;
-    private readonly IConfiguration _config;
-    public AuthController(AppDbContext db, IConfiguration config)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
     {
-        _db = db;
-        _config = config;
-    }
-    
-    [HttpPost("login")]
-    public IActionResult Login(User user)
-    {
-        var claims = new[]
+        private readonly AppDbContext _db;
+        private readonly IConfiguration _config;
+
+        public AuthController(AppDbContext db, IConfiguration config)
         {
-            new Claim(ClaimTypes.Name, user.Username),
-            new Claim(ClaimTypes.Role, user.IsAdmin ? "Admin" : "User")
-        };
+            _db = db;
+            _config = config;
+        }
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        [HttpPost("login")]
+        public IActionResult Login([FromBody] LoginRequest request)
+        {
+            var user = _db.Users.FirstOrDefault(u => u.Username == request.Username);
+            
+            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+            {
+                return Unauthorized(new { message = "Invalid username or password" });
+            }
 
-        var token = new JwtSecurityToken(
-            claims: claims,
-            expires: DateTime.Now.AddHours(2),
-            signingCredentials: creds
-        );
+            var token = GenerateJwtToken(user);
+            
+            return Ok(new 
+            { 
+                token = token,
+                user = new 
+                { 
+                    user.Id, 
+                    user.Username, 
+                    user.IsAdmin 
+                }
+            });
+        }
 
-        var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            return Ok(new { message = "Logout successful" });
+        }
 
-        return Ok(new { token = jwt });
+        private string GenerateJwtToken(User user)
+        {
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.IsAdmin ? "Admin" : "User"),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var expires = DateTime.UtcNow.AddHours(2);
+
+            var token = new JwtSecurityToken(
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
+                claims: claims,
+                expires: expires,
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
     }
-    // public async Task<IActionResult> Login(User user)
-    // {
-    //     User? checkUser = _db.Users.FirstOrDefault(u => u.Username == user.Username);
 
-    //     if (checkUser != null && BCrypt.Net.BCrypt.Verify(user.Password, checkUser.Password))
-    //     {
-    //         List<Claim>? claims = new List<Claim>
-    //         {
-    //             new Claim(ClaimTypes.Name, checkUser.Username),
-    //             new Claim(ClaimTypes.Role, checkUser.IsAdmin ? "Admin" : "User")
-    //         };
-    
-    //         ClaimsIdentity? identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-    //         ClaimsPrincipal? principal = new ClaimsPrincipal(identity);
-    
-    //         await HttpContext.SignInAsync(
-    //             CookieAuthenticationDefaults.AuthenticationScheme,
-    //             principal);
-    //         return Ok();
-    //     }
-    //     else
-    //     {
-    //         return Unauthorized();   
-    //     }
-    // }
-
-    // [HttpPost("logout")]
-    // public async Task<IActionResult> Logout()
-    // {
-    //     await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    //     return Ok();
-    // }
+    public class LoginRequest
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
 }
