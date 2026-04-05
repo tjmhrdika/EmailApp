@@ -1,0 +1,330 @@
+@page "/emails"
+@using EmailApp.Models
+@using EmailApp.Data
+@using Microsoft.EntityFrameworkCore
+@using System.IdentityModel.Tokens.Jwt
+@using System.Security.Claims
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+<PageTitle>Email Management</PageTitle>
+
+<div style="max-width:640px;">
+    <div style="max-width:1000px;margin:0 auto;">
+        <div style="margin-bottom:24px;">
+            <h1 style="font-size:20px;font-weight:700;color:#0d1b2a;margin:0;">Email Management</h1>
+            <p style="font-size:13px;color:#6b7a8d;margin-top:4px;">Kelola daftar penerima notifikasi alarm</p>
+        </div>
+
+        @if(isAdmin)
+        {
+            <div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;">
+                <!-- Add Email Form -->
+                <EditForm Model="email" OnValidSubmit="AddEmail" style="flex:1;min-width:280px;">
+                    <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                        <div style="font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
+                            Add Email
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <div>
+                                <InputText @bind-Value="email.Address"
+                                           style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;" 
+                                           placeholder="Email address" />
+                                <ValidationMessage For="@(() => email.Address)" style="font-size:11px;color:#dc2626;margin-top:4px;" />
+                            </div>
+                            <div>
+                                <InputSelect @bind-Value="email.EmailGroupId" 
+                                             style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;">
+                                    <option value="">-- No Group --</option>
+                                    @foreach (var g in groups)
+                                    {
+                                        <option value="@g.Id">@g.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                            @if (!string.IsNullOrEmpty(message))
+                            {
+                                <div style="font-size:11px;color:#dc2626;">
+                                    @message
+                                </div>
+                            }
+                            <button type="submit"
+                                    style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;background:#1a73e8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:white;cursor:pointer;width:100%;">
+                                <i class="bi bi-plus-lg"></i>
+                                Add Email
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+
+                <!-- Add Group Form -->
+                <EditForm Model="group" OnValidSubmit="AddGroup" style="flex:1;min-width:240px;">
+                    <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                        <div style="font-size:11px;font-weight:700;color:#6b7a8d;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">
+                            Add Group
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <div>
+                                <InputText @bind-Value="group.Name"
+                                           style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;"
+                                           placeholder="Group name" />
+                                <ValidationMessage For="@(() => group.Name)" style="font-size:11px;color:#dc2626;margin-top:4px;" />
+                            </div>
+                            <button type="submit"
+                                    style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;background:#1a73e8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:white;cursor:pointer;width:100%;">
+                                <i class="bi bi-plus-lg"></i>
+                                Add Group
+                            </button>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+        }
+
+        <!-- Groups and Emails List -->
+        @foreach (var grp in groups)
+        {
+            <div style="margin-bottom:24px;">
+                <!-- Group Header -->
+                <div style="background:#ffffff;border-radius:10px;border:1px solid #e2e8f0;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="flex:1;display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:13px;font-weight:600;color:#0d1b2a;">Group:</span>
+                        <InputText @bind-Value="grp.Name"
+                                   disabled="@(grp.Id != editingGroupId)"
+                                   style="flex:1;padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px;background:#f8fafc;outline:none;" />
+                    </div>
+                    @if(isAdmin)
+                    {
+                        <button @onclick="() => ToggleGroupEdit(grp)"
+                                style="width:32px;height:32px;border:none;border-radius:6px;background:#1a73e8;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                            <i class="bi @(grp.Id == editingGroupId ? "bi-check-lg" : "bi-pencil")" style="font-size:13px;"></i>
+                        </button>
+                        <button @onclick="() => DeleteOrCancelGroup(grp)"
+                                style="width:32px;height:32px;border:none;border-radius:6px;background:#ef4444;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                            <i class="bi @(editingGroupId == grp.Id ? "bi-x" : "bi-trash")" style="font-size:13px;"></i>
+                        </button>
+                    }
+                </div>
+
+                <!-- Emails in Group -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-left:16px;">
+                    @foreach (var e in emails.Where(e => e.EmailGroupId == grp.Id))
+                    {
+                        <div style="background:#ffffff;border-radius:10px;border:1px solid #e2e8f0;padding:10px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                            <InputText @bind-Value="e.Address"
+                                       disabled="@(e.Id != editingEmailId)"
+                                       style="flex:1;padding:7px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px;background:#f8fafc;outline:none;" />
+                            @if(isAdmin)
+                            {
+                                <button @onclick="() => ToggleEdit(e)"
+                                        style="width:30px;height:30px;border:none;border-radius:6px;background:#1a73e8;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                                    <i class="bi @(e.Id == editingEmailId ? "bi-check-lg" : "bi-pencil")" style="font-size:13px;"></i>
+                                </button>
+                                <button @onclick="() => DeleteOrCancel(e)"
+                                        style="width:30px;height:30px;border:none;border-radius:6px;background:#ef4444;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                                    <i class="bi @(editingEmailId == e.Id ? "bi-x" : "bi-trash")" style="font-size:13px;"></i>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Not Grouped Section -->
+        @if(emails.Any(e => e.EmailGroupId == null))
+        {
+            <div style="margin-top:32px;">
+                <div style="margin-bottom:12px;">
+                    <h3 style="font-size:14px;font-weight:700;color:#0d1b2a;margin:0;">Not Grouped</h3>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;">
+                    @foreach (var e in emails.Where(e => e.EmailGroupId == null))
+                    {
+                        <div style="background:#ffffff;border-radius:10px;border:1px solid #e2e8f0;padding:10px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                            <InputText @bind-Value="e.Address"
+                                       disabled="@(e.Id != editingEmailId)"
+                                       style="flex:1;padding:7px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px;background:#f8fafc;outline:none;" />
+                            @if(isAdmin)
+                            {
+                                <button @onclick="() => ToggleEdit(e)"
+                                        style="width:30px;height:30px;border:none;border-radius:6px;background:#1a73e8;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                                    <i class="bi @(e.Id == editingEmailId ? "bi-check-lg" : "bi-pencil")" style="font-size:13px;"></i>
+                                </button>
+                                <button @onclick="() => DeleteOrCancel(e)"
+                                        style="width:30px;height:30px;border:none;border-radius:6px;background:#ef4444;color:white;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                                    <i class="bi @(editingEmailId == e.Id ? "bi-x" : "bi-trash")" style="font-size:13px;"></i>
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private bool isAdmin = false;
+    private Email email = new Email();
+    private string message = string.Empty;
+    private List<Email> emails = new List<Email>();
+    private Guid? editingEmailId = null;
+    private string tempEmail = String.Empty;
+    private EmailGroup group = new();
+    private List<EmailGroup> groups = new();
+    private Guid? editingGroupId = null;
+    private string tempGroup = String.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+            JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+            string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (role == "Admin")
+            {
+                isAdmin = true;
+                StateHasChanged();
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadEmails();
+        await LoadEmailGroups();
+    }
+
+    private async Task LoadEmails()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        emails = await db.Emails.ToListAsync();
+        
+    }
+
+    private async Task LoadEmailGroups()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        groups = await db.EmailGroups.ToListAsync();
+    }
+
+    private async Task AddEmail()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        
+        if (await db.Emails.AnyAsync(x => x.Address == email.Address))
+        {
+            message = "Email already exists";
+            return;
+        }
+
+        message = string.Empty;
+        await db.Emails.AddAsync(email);
+        await db.SaveChangesAsync();
+
+        email = new Email();
+        await LoadEmails();
+    }
+
+    private async Task DeleteOrCancel(Email e)
+    {
+        if (editingEmailId == e.Id)
+        {
+            editingEmailId = null;
+            e.Address = tempEmail;
+        }
+        else
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.Emails.Remove(e);
+            await db.SaveChangesAsync();
+            await LoadEmails();
+        }
+    }
+
+    private async Task ToggleEdit(Email e)
+    {
+        if (editingEmailId == e.Id)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.Emails.Update(e);
+            await db.SaveChangesAsync();
+            editingEmailId = null;
+            await LoadEmails();
+        }
+        else
+        {
+            if(editingEmailId != null)
+            {
+                var prev = emails.First(x => x.Id == editingEmailId);
+                prev.Address = tempEmail;
+            }
+            editingEmailId = e.Id;
+            tempEmail = e.Address;
+        }
+    }
+
+    private async Task AddGroup()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        await db.EmailGroups.AddAsync(group);
+        await db.SaveChangesAsync();
+
+        group = new EmailGroup();
+        await LoadEmailGroups();
+    }
+
+    private async Task ToggleGroupEdit(EmailGroup g)
+    {
+        if (editingGroupId == g.Id)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            db.EmailGroups.Update(g);
+            await db.SaveChangesAsync();
+            editingGroupId = null;
+            tempGroup = String.Empty;
+        }
+        else
+        {
+            if(editingGroupId != null)
+            {
+                var prev = groups.First(x => x.Id == editingGroupId);
+                prev.Name = tempGroup;
+            }
+            editingGroupId = g.Id;
+            tempGroup = g.Name;            
+        }
+    }
+
+    private async Task DeleteOrCancelGroup(EmailGroup g)
+    {
+        if (editingGroupId == g.Id) {
+            editingGroupId = null;
+            g.Name = tempGroup;
+        }
+        else
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var relatedEmails = db.Emails.Where(e => e.EmailGroupId == g.Id);
+            foreach (var e in relatedEmails)
+            {
+                e.EmailGroupId = null;
+            }
+
+            db.EmailGroups.Remove(g);
+            await db.SaveChangesAsync();
+            await LoadEmails();
+            await LoadEmailGroups();
+        }
+    }
+}

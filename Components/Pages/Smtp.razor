@@ -1,0 +1,219 @@
+@page "/set-smtp"
+@using System.IdentityModel.Tokens.Jwt
+@using System.Security.Claims
+@using Microsoft.EntityFrameworkCore
+@inject IEmailService EmailService
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<div style="max-width:1000px;">
+    <div style="margin-bottom:24px;">
+        <h3 style="font-size:20px;font-weight:700;color:#0d1b2a;margin:0;">Set SMTP</h3>
+        <p style="font-size:13px;color:#6b7a8d;margin-top:4px;">Configure SMTP server settings for email notifications</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(alertMessage))
+    {
+        <div style="margin-bottom:20px;padding:12px 16px;border-radius:8px;background:@(alertType == "success" ? "#d4edda" : "#fee2e2");border:1px solid @(alertType == "success" ? "#c3e6cb" : "#fecaca");color:@(alertType == "success" ? "#155724" : "#dc2626");font-size:13px;display:flex;align-items:center;justify-content:space-between;">
+            @alertMessage
+            <button type="button" @onclick="() => alertMessage = String.Empty" style="background:none;border:none;font-size:20px;cursor:pointer;color:@(alertType == "success" ? "#155724" : "#dc2626");">&times;</button>
+        </div>
+    }
+
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+        <!-- SMTP Configuration Form -->
+        <div style="flex:1;min-width:300px;">
+            <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                <EditForm Model="@setSmtp" OnValidSubmit="Set">
+                    <DataAnnotationsValidator />
+
+                    <div style="margin-bottom:20px;">
+                        <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">Host</label>
+                        <InputText class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.Host" 
+                                   style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;" />
+                        <ValidationMessage For="@(() => setSmtp.Host)" style="font-size:11px;color:#dc2626;margin-top:4px;display:block;" />
+                    </div>
+
+                    <div style="margin-bottom:20px;">
+                        <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">Port</label>
+                        <InputNumber class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.Port" 
+                                     style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;" />
+                        <ValidationMessage For="@(() => setSmtp.Port)" style="font-size:11px;color:#dc2626;margin-top:4px;display:block;" />
+                    </div>
+
+                    <div style="margin-bottom:20px;">
+                        <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">User</label>
+                        <InputText type="email" class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.User" 
+                                   style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;" />
+                        <ValidationMessage For="@(() => setSmtp.User)" style="font-size:11px;color:#dc2626;margin-top:4px;display:block;" />
+                    </div>
+
+                    <div style="margin-bottom:20px;">
+                        <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">Password</label>
+                        <InputText class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.Pass" 
+                                   style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;" />
+                        <ValidationMessage For="@(() => setSmtp.Pass)" style="font-size:11px;color:#dc2626;margin-top:4px;display:block;" />
+                    </div>
+
+                    <div style="margin-bottom:20px;">
+                        <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">From Email</label>
+                        <InputText type="email" class="form-control" disabled="@( !isEdit )" @bind-Value="setSmtp.FromEmail" 
+                                   style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;" />
+                        <ValidationMessage For="@(() => setSmtp.FromEmail)" style="font-size:11px;color:#dc2626;margin-top:4px;display:block;" />
+                    </div>
+
+                    <div style="display:flex;justify-content:flex-end;gap:12px;">
+                        @if (isEdit)
+                        {
+                            <button type="submit" 
+                                    style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:#1a73e8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:white;cursor:pointer;">
+                                <i class="bi bi-check-lg"></i>
+                                OK
+                            </button>
+
+                            <button type="button"
+                                    style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:#6c757d;border:none;border-radius:8px;font-size:13px;font-weight:600;color:white;cursor:pointer;"
+                                    @onclick="CancelEdit">
+                                <i class="bi bi-x"></i>
+                                Cancel
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="button"
+                                    style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:#1a73e8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:white;cursor:pointer;"
+                                    @onclick="BeginEdit">
+                                <i class="bi bi-pencil"></i>
+                                Edit
+                            </button>
+                        }
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+
+        <!-- Test Email Form -->
+        <div style="flex:1;min-width:300px;">
+            <div style="background:#ffffff;border-radius:12px;border:1px solid #e2e8f0;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                <div style="margin-bottom:24px;">
+                    <h3 style="font-size:20px;font-weight:700;color:#0d1b2a;margin:0;">Test Email</h3>
+                    <p style="font-size:13px;color:#6b7a8d;margin-top:4px;">Send a test email to verify SMTP configuration</p>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">To Email</label>
+                    <input type="email" 
+                           style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;"
+                           @bind="toEmail" 
+                           disabled="@isEdit">
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">Subject</label>
+                    <input 
+                           style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;"
+                           @bind="subject" 
+                           disabled="@isEdit">
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="font-size:13px;font-weight:600;color:#0d1b2a;margin-bottom:6px;display:block;">Body</label>
+                    <textarea 
+                              style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#f8fafc;outline:none;font-family:inherit;resize:vertical;"
+                              rows="4" 
+                              @bind="body" 
+                              disabled="@isEdit"></textarea>
+                </div>
+
+                <div style="display:flex;justify-content:flex-end;">
+                    <button type="button" 
+                            @onclick="Send" 
+                            disabled="@isEdit"
+                            style="display:flex;align-items:center;gap:6px;padding:10px 16px;background:#1a73e8;border:none;border-radius:8px;font-size:13px;font-weight:600;color:white;cursor:pointer;opacity:@(isEdit ? "0.6" : "1");">
+                        <i class="bi bi-send"></i>
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private bool isEdit = false;
+    private SetSmtp setSmtp = new();
+    private SetSmtp tempSetSmtp = new();
+    private string toEmail = String.Empty;
+    private string subject = String.Empty;
+    private string body = String.Empty;
+    private string alertMessage = String.Empty;
+    private string alertType = String.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            string? token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                NavigationManager.NavigateTo("/");
+                return;
+            }
+
+            JwtSecurityTokenHandler? handler = new JwtSecurityTokenHandler();
+            JwtSecurityToken? jwt = handler.ReadJwtToken(token);
+            string? role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            if (role != "Admin")
+            {
+                NavigationManager.NavigateTo("/");
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSetSmtp();
+    }
+
+    private async Task LoadSetSmtp()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        setSmtp = await db.SetSmtp.FirstAsync();
+    }
+
+    private async Task Set()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.SetSmtp.Update(setSmtp);
+        await db.SaveChangesAsync();
+        isEdit = false;
+    }
+
+    private void BeginEdit()
+    {
+        tempSetSmtp = setSmtp.Clone();
+        isEdit = true;
+    }
+
+    private void CancelEdit()
+    {
+        setSmtp = tempSetSmtp.Clone();
+        isEdit = false;
+    }
+
+    private async Task Send()
+    {
+        try
+        {
+            await EmailService.SendAsync(toEmail, subject, body);
+            alertMessage = "Email sent!";
+            alertType = "success";
+        }
+        catch(Exception e)
+        {
+            alertMessage = e.Message;
+            alertType = "danger";
+        }
+    }
+}

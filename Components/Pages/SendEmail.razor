@@ -1,0 +1,139 @@
+@page "/send-email-tes"
+@using EmailApp.Models
+@using EmailApp.Services
+@using Microsoft.EntityFrameworkCore
+@using System.IdentityModel.Tokens.Jwt
+@using System.Security.Claims
+@inject IDbContextFactory<AppDbContext> DbFactory
+@inject IEmailService EmailService
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+<div style="max-width:640px;">
+    <div style="margin-bottom:28px;">
+        <h2 style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Send Email</h2>
+        <p style="font-size:13px;color:#9aa0ab;margin:0;">Kirim notifikasi alarm ke seluruh penerima terdaftar</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(AlertMessage))
+    {
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:8px;margin-bottom:20px;font-size:13px;font-weight:500;background:@(AlertType == "success" ? "#f0fdf4" : "#fff0f0");color:@(AlertType == "success" ? "#15803d" : "#e53935");border:1px solid @(AlertType == "success" ? "#bbf7d0" : "#ffd6d6");">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <i class="bi bi-@(AlertType == "success" ? "check-circle" : "exclamation-circle")" style="font-size:15px;"></i>
+                @AlertMessage
+            </div>
+            <button @onclick="ClearAlert" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;display:flex;align-items:center;">
+                <i class="bi bi-x" style="font-size:17px;"></i>
+            </button>
+        </div>
+    }
+
+    <div style="background:#ffffff;border-radius:12px;border:1px solid #e8eaed;padding:24px;">
+        <div style="margin-bottom:16px;">
+            <label style="display:block;font-size:12px;font-weight:600;color:#5f6368;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Pesan</label>
+            <textarea @bind="EmailBody" rows="6" placeholder="Tulis pesan notifikasi alarm..."
+                      style="width:100%;padding:10px 12px;border:1px solid #e8eaed;border-radius:8px;font-size:14px;color:#1a1a2e;outline:none;resize:vertical;font-family:inherit;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;">
+            <button @onclick="SendEmailAsync" disabled="@IsSending" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#1a73e8;color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;opacity:@(IsSending ? 0.6 : 1);">
+                @if (IsSending)
+                {
+                    <i class="bi bi-hourglass-split" style="font-size:14px;"></i>
+                    <span>Mengirim...</span>
+                }
+                else
+                {
+                    <i class="bi bi-send" style="font-size:14px;"></i>
+                    <span>Kirim Email</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string EmailBody = string.Empty;
+    private string AlertMessage = string.Empty;
+    private string AlertType = "success";
+    private bool IsSending = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        await ValidateAdminAccess();
+    }
+
+   private async Task ValidateAdminAccess()
+    {
+        var token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+        
+        if (string.IsNullOrEmpty(token))
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        var handler = new JwtSecurityTokenHandler();
+        var jwt = handler.ReadJwtToken(token);
+        var role = jwt.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+        
+        if (role != "Admin")
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+    private async Task SendEmailAsync()
+    {
+        if (string.IsNullOrWhiteSpace(EmailBody))
+        {
+            ShowAlert("Pesan email tidak boleh kosong", "error");
+            return;
+        }
+
+        IsSending = true;
+        StateHasChanged();
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var recipients = await db.Emails
+                .Select(e => e.Address)
+                .ToListAsync();
+
+            if (!recipients.Any())
+            {
+                ShowAlert("Tidak ada penerima email terdaftar", "error");
+                return;
+            }
+
+            await EmailService.SendBulkEmailAsync(recipients, "Alarm Notification", EmailBody);
+            
+            ShowAlert($"Email berhasil dikirim ke {recipients.Count} penerima", "success");
+            EmailBody = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            ShowAlert($"Gagal mengirim email: {ex.Message}", "error");
+        }
+        finally
+        {
+            IsSending = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearAlert()
+    {
+        AlertMessage = string.Empty;
+        StateHasChanged();
+    }
+
+    private void ShowAlert(string message, string type)
+    {
+        AlertMessage = message;
+        AlertType = type;
+        StateHasChanged();
+    }
+}

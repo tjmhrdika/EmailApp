@@ -1,0 +1,256 @@
+﻿@page "/"
+@using EmailApp.Models
+@using EmailApp.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AlarmDbContext> AlarmDbFactory
+@inject IDbContextFactory<AppDbContext> AppDbFactory
+@implements IDisposable
+
+<PageTitle>Dashboard</PageTitle>
+
+<div style="max-width:100%;">
+    <div style="margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;">
+        <div>
+            <h2 style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Dashboard</h2>
+            <p style="font-size:13px;color:#9aa0ab;margin:0;">CIP Station - Laporan Pengajuan Alarm</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:@(isLive ? "#22c55e" : "#e5e7eb");"></div>
+            <span style="font-size:12px;color:#9aa0ab;">@(isLive ? "Live" : "Connecting...")</span>
+            <span style="font-size:12px;color:#9aa0ab;">· Updated @lastUpdated.ToString("HH:mm:ss")</span>
+        </div>
+    </div>
+
+
+    <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <span style="font-size:12px;font-weight:600;color:#5f6368;text-transform:uppercase;letter-spacing:0.5px;">Filter:</span>
+        @foreach (var f in filters)
+        {
+            <button @onclick="() => SetFilter(f.Key)"
+                    style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid @(activeFilter == f.Key ? "#1a73e8" : "#e8eaed");background:@(activeFilter == f.Key ? "#e8f0fe" : "#f8fafc");color:@(activeFilter == f.Key ? "#1a73e8" : "#5f6368");">
+                @f.Value
+            </button>
+        }
+    </div>
+
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Total Alarm</div>
+            <div style="font-size:28px;font-weight:800;color:#1a1a2e;">@filteredAlarms.Count</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #fca5a5;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Unack</div>
+            <div style="font-size:28px;font-weight:800;color:#dc2626;">@filteredAlarms.Count(a => a.AlarmState.Trim() == "UNACK_ALM")</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Email Terkirim</div>
+            <div style="font-size:28px;font-weight:800;color:#1a73e8;">@emailLogs.Count(e => e.EmailSent)</div>
+        </div>
+        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
+            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Sender</div>
+            <div style="font-size:13px;font-weight:700;color:#1a1a2e;word-break:break-all;">@senderEmail</div>
+        </div>
+    </div>
+
+
+    <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;overflow:hidden;margin-bottom:20px;">
+        <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
+            <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0;">Alarm Log</h5>
+            <span style="font-size:12px;color:#9aa0ab;background:#f4f6f9;padding:4px 10px;border-radius:20px;">@activeFilterLabel</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Time</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">State</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Tag</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Group</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Priority</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Email</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in filteredAlarms.OrderByDescending(x => x.EventStamp))
+                    {
+                        var emailLog = emailLogs.FirstOrDefault(e => e.AlarmId == item.AlarmId);
+                        <tr style="border-top:1px solid #f0f0f0;background:@(item.AlarmState.Trim() == "UNACK_ALM" ? "#fff8f8" : "white");">
+                            <td style="padding:12px 16px;color:#5f6368;">@item.EventStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td style="padding:12px 16px;">
+                                <span style="background:@(item.AlarmState.Trim() == "UNACK_ALM" ? "#fee2e2" : "#f4f6f9");color:@(item.AlarmState.Trim() == "UNACK_ALM" ? "#dc2626" : "#5f6368");padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;">
+                                    @item.AlarmState.Trim()
+                                </span>
+                            </td>
+                            <td style="padding:12px 16px;color:#1a1a2e;font-weight:500;">@item.TagName</td>
+                            <td style="padding:12px 16px;color:#5f6368;">@item.GroupName</td>
+                            <td style="padding:12px 16px;color:@(item.Priority == 500 ? "#f59e0b" : "#1a1a2e");font-weight:@(item.Priority == 500 ? "700" : "400");">@item.Priority</td>
+                            <td style="padding:12px 16px;">
+                                @if (emailLog != null && emailLog.EmailSent)
+                                {
+                                    <span title="@emailLog.EmailRecipients" style="background:#dcfce7;color:#15803d;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;cursor:help;">
+                                        ✓ Sent
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span style="color:#9aa0ab;font-size:12px;">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;overflow:hidden;">
+        <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;">
+            <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0;">Email Log</h5>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                <thead>
+                    <tr style="background:#f8fafc;">
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Sent At</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Alarm ID</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Recipients</th>
+                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in emailLogs.OrderByDescending(e => e.EmailSentAt))
+                    {
+                        <tr style="border-top:1px solid #f0f0f0;">
+                            <td style="padding:12px 16px;color:#5f6368;">@log.EmailSentAt?.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            <td style="padding:12px 16px;color:#1a1a2e;">@log.AlarmId</td>
+                            <td style="padding:12px 16px;color:#5f6368;font-size:12px;">@log.EmailRecipients</td>
+                            <td style="padding:12px 16px;">
+                                @if (log.EmailSent)
+                                {
+                                    <span style="background:#dcfce7;color:#15803d;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;">✓ Sent</span>
+                                }
+                                else
+                                {
+                                    <span style="background:#fee2e2;color:#dc2626;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;" title="@log.ErrorMessage">✗ Failed</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<AlarmData> alarms = new();
+    private List<AlarmData> filteredAlarms = new();
+    private List<AlarmEmailTracking> emailLogs = new();
+    private string senderEmail = "-";
+    private string activeFilter = "1h";
+    private DateTime lastUpdated = DateTime.Now;
+    private bool isLive = false;
+    private PeriodicTimer? _timer;
+
+    private Dictionary<string, string> filters = new()
+    {
+        { "15m", "15 Menit" },
+        { "1h", "1 Jam" },
+        { "6h", "6 Jam" },
+        { "24h", "24 Jam" },
+        { "7d", "7 Hari" }
+    };
+
+    private string activeFilterLabel => filters.GetValueOrDefault(activeFilter, "1 Jam");
+
+    private class AlarmData
+    {
+        public int AlarmDetailId { get; set; }
+        public int AlarmId { get; set; }
+        public string AlarmState { get; set; } = string.Empty;
+        public DateTime EventStamp { get; set; }
+        public string TagName { get; set; } = string.Empty;
+        public string GroupName { get; set; } = string.Empty;
+        public short Priority { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAll();
+        _ = StartLiveUpdate();
+    }
+
+    private async Task StartLiveUpdate()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
+        while (await _timer.WaitForNextTickAsync())
+        {
+            await LoadAll();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private DateTime GetSince()
+    {
+        return activeFilter switch
+        {
+            "15m" => DateTime.Now.AddMinutes(-15),
+            "1h"  => DateTime.Now.AddHours(-1),
+            "6h"  => DateTime.Now.AddHours(-6),
+            "24h" => DateTime.Now.AddHours(-24),
+            "7d"  => DateTime.Now.AddDays(-7),
+            _     => DateTime.Now.AddHours(-1)
+        };
+    }
+
+    private async Task LoadAll()
+    {
+        await using var alarmDb = await AlarmDbFactory.CreateDbContextAsync();
+        await using var appDb = await AppDbFactory.CreateDbContextAsync();
+
+        var since = GetSince();
+
+        alarms = await alarmDb.AlarmDetails
+            .Include(ad => ad.AlarmMaster)
+            .Where(ad => ad.EventStamp >= since)
+            .Select(ad => new AlarmData
+            {
+                AlarmDetailId = ad.AlarmDetailId,
+                AlarmId = ad.AlarmId,
+                AlarmState = ad.AlarmState,
+                EventStamp = ad.EventStamp,
+                TagName = ad.AlarmMaster.TagName,
+                GroupName = ad.AlarmMaster.GroupName,
+                Priority = ad.AlarmMaster.Priority
+            })
+            .OrderByDescending(ad => ad.EventStamp)
+            .Take(100)
+            .ToListAsync();
+
+        filteredAlarms = alarms;
+
+        emailLogs = await appDb.AlarmEmailTracking
+            .OrderByDescending(e => e.EmailSentAt)
+            .Take(50)
+            .ToListAsync();
+
+        var smtp = await appDb.SetSmtp.FirstOrDefaultAsync();
+        senderEmail = smtp?.FromEmail ?? "-";
+
+        lastUpdated = DateTime.Now;
+        isLive = true;
+    }
+
+    private async Task SetFilter(string filter)
+    {
+        activeFilter = filter;
+        await LoadAll();
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}
