@@ -49,7 +49,7 @@ namespace EmailApp.Services
             await client.DisconnectAsync(true);
         }
 
-        private async Task<EmailSettings> GetEffectiveSettings()
+        public async Task<EmailSettings> GetEffectiveSettings()
         {
             using var db = await _dbFactory.CreateDbContextAsync();
             var smtp = await db.SetSmtp.FirstOrDefaultAsync();

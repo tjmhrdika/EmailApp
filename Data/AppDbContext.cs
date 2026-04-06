@@ -49,10 +49,20 @@ namespace EmailApp.Data
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
             });
             
+            modelBuilder.Entity<User>().HasData(
+                new User
+                {
+                    Id = Guid.NewGuid(),
+                    Username = "admin",
+                    Password = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                    IsAdmin = true
+                }
+            );
+
             modelBuilder.Entity<SetSmtp>().HasData(
                 new SetSmtp
                 {
-                    Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                    Id = Guid.NewGuid(),
                     Host = "",
                     Port = 0,
                     User = "",

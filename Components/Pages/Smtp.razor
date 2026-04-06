@@ -178,8 +178,14 @@
 
     private async Task LoadSetSmtp()
     {
+        EmailSettings settings = await EmailService.GetEffectiveSettings();
         await using var db = await DbFactory.CreateDbContextAsync();
-        setSmtp = await db.SetSmtp.FirstAsync();
+        setSmtp.Id = await db.SetSmtp.Select(x => x.Id).FirstOrDefaultAsync();
+        setSmtp.Host = settings.SmtpHost;
+        setSmtp.Port = settings.SmtpPort;
+        setSmtp.User = settings.SmtpUser;
+        setSmtp.Pass = settings.SmtpPass;
+        setSmtp.FromEmail = settings.FromEmail;
     }
 
     private async Task Set()
