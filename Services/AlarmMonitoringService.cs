@@ -57,7 +57,7 @@ namespace EmailApp.Services
 
             var newAlarms = await alarmDb.AlarmDetails
                 .Include(ad => ad.AlarmMaster)
-                .Where(ad => ad.AlarmState.Trim() == "UNACK_ALM" && ad.EventStamp >= since)
+                .Where(ad => (ad.AlarmState.Trim() == "UNACK_ALM" || ad.AlarmState.Trim() == "UNACK_RTN") && ad.EventStamp >= since)
                 .OrderBy(ad => ad.EventStamp)
                 .Take(20)
                 .ToListAsync(stoppingToken);
