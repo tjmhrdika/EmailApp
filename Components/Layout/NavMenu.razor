@@ -15,44 +15,46 @@
         </button>
     </div>
 
-    @* <div style="padding:10px 12px 0 12px;">
-        <div style="display:flex;align-items:center;background:#f4f6f9;border-radius:8px;padding:8px 12px;gap:8px;">
-            <i class="bi bi-search" style="color:#9aa0ab;font-size:13px;"></i>
-            <span style="font-size:13px;color:#9aa0ab;">Search</span>
-        </div>
-    </div> *@
-
     <div style="flex:1;padding:8px 12px;overflow-y:auto;margin-top:6px;">
-        @NavItem("", "bi-house-door", "Home", true)
         @if (isLoggedIn)
         {
+            @NavItem("", "bi-house-door", "Home", true)
             @NavItem("users", "bi-people", "Users")
-            @NavItem("emails", "bi-at", "Emails")
             @if (isAdmin)
             {
-                @NavItem("set-smtp", "bi-gear", "Set SMTP")
-                @NavItem("send-email", "bi-send", "Send Email")
+                @NavItem("email-settings", "bi-envelope-gear", "Email Settings")
             }   
         }
     </div>
 
     <div style="padding:14px 12px;border-top:1px solid #f0f0f0;">
-        <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;">
-            <div style="width:34px;height:34px;background:#e8eaed;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <i class="bi bi-person-fill" style="color:#5f6368;font-size:15px;"></i>
+        @if (isLoggedIn)
+        {
+            <div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;">
+                <div style="width:34px;height:34px;background:#e8eaed;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="bi bi-person-fill" style="color:#5f6368;font-size:15px;"></i>
+                </div>
+                <div>
+                    <div style="font-size:13px;font-weight:600;color:#1a1a2e;">@username</div>
+                    <div style="font-size:11px;color:#9aa0ab;">@(isAdmin ? "Administrator" : "User")</div>
+                </div>
             </div>
-            <div>
-                <div style="font-size:13px;font-weight:600;color:#1a1a2e;">@username</div>
-                <div style="font-size:11px;color:#9aa0ab;">@(isAdmin ? "Administrator" : "User")</div>
+            <div style="margin-top:2px;">
+                <button @onclick="Logout"
+                        style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:#5f6368;font-size:13px;background:none;border:none;cursor:pointer;">
+                    <i class="bi bi-box-arrow-right" style="font-size:15px;width:18px;"></i>
+                    Log out
+                </button>
             </div>
-        </div>
-        <div style="margin-top:2px;">
-            <button @onclick="Logout"
+        }
+        else
+        {
+            <button @onclick="GoToLogin"
                     style="width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:#5f6368;font-size:13px;background:none;border:none;cursor:pointer;">
-                <i class="bi bi-box-arrow-right" style="font-size:15px;width:18px;"></i>
-                Log out
+                <i class="bi bi-box-arrow-in-right" style="font-size:15px;width:18px;"></i>
+                Log in
             </button>
-        </div>
+        }
     </div>
 
 </div>
@@ -82,11 +84,16 @@
 
     private async Task Logout()
     {
-        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        await JS.InvokeVoidAsync("authApi.logout");
 
         if (AuthProvider is CustomAuthenticationStateProvider customProvider)
             customProvider.NotifyUserLogout();
 
+        NavigationManager.NavigateTo("/login", true);
+    }
+
+    private void GoToLogin()
+    {
         NavigationManager.NavigateTo("/login", true);
     }
 

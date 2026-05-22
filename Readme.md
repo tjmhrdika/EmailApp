@@ -27,10 +27,9 @@ Sistem monitoring alarm otomatis dari database AVEVA (Wonderware) yang mengirimk
 | 📧 **Notifikasi Email Otomatis** | Kirim email ke semua penerima terdaftar saat alarm baru |
 | 📊 **Dashboard Statistik** | Visualisasi data alarm (total, unack, priority, groups) |
 | 👥 **User Management** | Kelola user dengan role admin/user |
-| 📬 **Email Management** | Kelola daftar penerima email |
+| 📬 **Email Settings** | Kelola SMTP, penerima email, dan kirim email manual |
 | 🔐 **Authentication** | Login dengan JWT token dan role-based access |
 | 📝 **Tracking Pengiriman** | Catat semua email yang sudah dikirim |
-| 🧪 **Testing Page** | Insert alarm manual untuk testing |
 
 ---
 
@@ -74,7 +73,7 @@ Sistem monitoring alarm otomatis dari database AVEVA (Wonderware) yang mengirimk
 │  ┌──────────────────────────────────────────────┐              │
 │  │              Web Interface (Blazor)           │              │
 │  │  • Dashboard  • Users  • Emails              │              │
-│  │  • Send Email • Testing                      │              │
+│  │  • Email Settings                           │              │
 │  └──────────────────────────────────────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -232,22 +231,12 @@ Menampilkan statistik alarm:
 - Delete user
 - Set role admin
 
-### 4. Email Management (`/emails`)
+### 4. Email Settings (`/email-settings`)
 
-- Tambah email penerima
-- Edit email
-- Delete email
-
-### 5. Manual Send Email (`/send-email`)
-
-- Tulis pesan manual
-- Kirim ke semua penerima
-
-### 6. Testing Page (`/testing`)
-
-- Insert alarm manual
-- Quick action buttons
-- Lihat 10 alarm terbaru
+- Konfigurasi SMTP
+- Tambah/edit/delete penerima email
+- Kelola group penerima
+- Kirim email manual ke seluruh penerima
 
 ---
 

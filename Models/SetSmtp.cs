@@ -1,27 +1,39 @@
 using System.ComponentModel.DataAnnotations;
-public class SetSmtp
+
+namespace EmailApp.Models
 {
-    public Guid Id { get; set; }
-    [Required]
-    public string Host { get; set; } = String.Empty;
-    [Required]
-    public int Port { get; set; }
-    [Required, EmailAddress]
-    public string User { get; set; } = String.Empty;
-    [Required]
-    public string Pass { get; set; } = String.Empty;
-    [Required, EmailAddress]
-    public string FromEmail { get; set; } = String.Empty;
-    public SetSmtp Clone()
+    public class SetSmtp
     {
-        return new SetSmtp
+        public Guid Id { get; set; }
+
+        [Required]
+        public string Host { get; set; } = string.Empty;
+
+        [Required]
+        public int Port { get; set; }
+
+        [Required]
+        [EmailAddress]
+        public string User { get; set; } = string.Empty;
+
+        [Required]
+        public string Pass { get; set; } = string.Empty;
+
+        [Required]
+        [EmailAddress]
+        public string FromEmail { get; set; } = string.Empty;
+
+        public SetSmtp Clone()
         {
-            Id = this.Id,
-            Host = this.Host,
-            Port = this.Port,
-            User = this.User,
-            Pass = this.Pass,
-            FromEmail = this.FromEmail
-        };
-    }    
+            return new SetSmtp
+            {
+                Id = Id,
+                Host = Host,
+                Port = Port,
+                User = User,
+                Pass = Pass,
+                FromEmail = FromEmail
+            };
+        }
+    }
 }

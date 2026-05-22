@@ -10,8 +10,6 @@ namespace EmailApp.Data
         {
         }
         
-        public DbSet<AlarmDetail> AlarmDetails { get; set; }
-        public DbSet<AlarmMaster> AlarmMasters { get; set; }
         public DbSet<Email> Emails { get; set; }
         public DbSet<Group> Groups { get; set; }
         public DbSet<UserGroup> UserGroups { get; set; }
@@ -45,9 +43,22 @@ namespace EmailApp.Data
             {
                 entity.HasKey(e => e.Id);
                 entity.ToTable("AlarmEmailTracking");
+                entity.HasIndex(e => e.AlarmDetailId).IsUnique();
                 entity.Property(e => e.EmailSent).HasDefaultValue(false);
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
             });
+
+            modelBuilder.Entity<EmailGroup>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasIndex(e => e.Name).IsUnique();
+            });
+
+            modelBuilder.Entity<Email>()
+                .HasOne(e => e.EmailGroup)
+                .WithMany(g => g.Emails)
+                .HasForeignKey(e => e.EmailGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
             
             modelBuilder.Entity<SetSmtp>().HasData(
                 new SetSmtp
