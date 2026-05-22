@@ -1,11 +1,9 @@
 @page "/login"
+@attribute [Microsoft.AspNetCore.Authorization.AllowAnonymous]
 @layout Components.Layout.EmptyLayout
-@using EmailApp.Services
 @using Microsoft.AspNetCore.Components.Forms
-@inject HttpClient Http
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
-@inject AuthenticationStateProvider AuthProvider
 
 <div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f1f3f6;padding:16px;">
     <div style="background:#ffffff;border-radius:14px;border:1px solid #e8eaed;padding:36px 32px;width:100%;max-width:400px;">
@@ -48,6 +46,9 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
     private LoginRequest loginModel = new();
     private string usernameMessage = string.Empty;
     private string passwordMessage = string.Empty;
@@ -58,27 +59,32 @@
         public string Password { get; set; } = string.Empty;
     }
 
-    private record TokenResponse(string token);
+    private record LoginResult(bool Success, string? Token, string? Message);
 
     private async Task LoginUser()
     {
         usernameMessage = string.Empty;
         passwordMessage = string.Empty;
 
-        var response = await Http.PostAsJsonAsync("api/auth/login", loginModel);
+        var result = await JS.InvokeAsync<LoginResult>("authApi.login", loginModel.Username, loginModel.Password);
 
-        if (!response.IsSuccessStatusCode)
+        if (!result.Success)
         {
-            passwordMessage = "Username atau password salah";
+            passwordMessage = result.Message ?? "Username atau password salah";
             return;
         }
 
-        var result = await response.Content.ReadFromJsonAsync<TokenResponse>();
-        await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result?.token);
+        await JS.InvokeVoidAsync("authApi.redirect", GetSafeReturnUrl());
+    }
 
-        if (AuthProvider is CustomAuthenticationStateProvider customProvider)
-            customProvider.NotifyUserAuthentication(result?.token ?? string.Empty);
+    private string GetSafeReturnUrl()
+    {
+        if (string.IsNullOrWhiteSpace(ReturnUrl))
+            return "/";
 
-        NavigationManager.NavigateTo("/", true);
+        if (Uri.TryCreate(ReturnUrl, UriKind.Absolute, out _))
+            return "/";
+
+        return ReturnUrl.StartsWith("/", StringComparison.Ordinal) ? ReturnUrl : $"/{ReturnUrl}";
     }
 }

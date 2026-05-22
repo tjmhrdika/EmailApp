@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using EmailApp.Contracts.Auth;
 using EmailApp.Data;
 using EmailApp.Models;
 
@@ -14,24 +18,29 @@ namespace EmailApp.Controllers
     {
         private readonly AppDbContext _db;
         private readonly IConfiguration _config;
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(AppDbContext db, IConfiguration config)
+        public AuthController(AppDbContext db, IConfiguration config, ILogger<AuthController> logger)
         {
             _db = db;
             _config = config;
+            _logger = logger;
         }
 
+        [AllowAnonymous]
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginRequest request)
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = _db.Users.FirstOrDefault(u => u.Username == request.Username);
+            var username = request.Username.Trim();
+            var user = _db.Users.FirstOrDefault(u => u.Username == username);
             
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
+            if (user == null || !IsPasswordValid(request.Password, user))
             {
                 return Unauthorized(new { message = "Invalid username or password" });
             }
 
             var token = GenerateJwtToken(user);
+            await SignInUser(user);
             
             return Ok(new 
             { 
@@ -46,8 +55,9 @@ namespace EmailApp.Controllers
         }
 
         [HttpPost("logout")]
-        public IActionResult Logout()
+        public async Task<IActionResult> Logout()
         {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Ok(new { message = "Logout successful" });
         }
 
@@ -76,11 +86,39 @@ namespace EmailApp.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
-    }
 
-    public class LoginRequest
-    {
-        public string Username { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
+        private async Task SignInUser(User user)
+        {
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new(ClaimTypes.Name, user.Username),
+                new(ClaimTypes.Role, user.IsAdmin ? "Admin" : "User")
+            };
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+            var properties = new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(2),
+                AllowRefresh = true
+            };
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, properties);
+        }
+
+        private bool IsPasswordValid(string password, User user)
+        {
+            try
+            {
+                return BCrypt.Net.BCrypt.Verify(password, user.Password);
+            }
+            catch (BCrypt.Net.SaltParseException ex)
+            {
+                _logger.LogWarning(ex, "Invalid password hash for user {UserId}", user.Id);
+                return false;
+            }
+        }
     }
 }

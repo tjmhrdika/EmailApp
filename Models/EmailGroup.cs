@@ -1,12 +1,14 @@
 using System.ComponentModel.DataAnnotations;
-using EmailApp.Models;
 
-public class EmailGroup
+namespace EmailApp.Models
 {
-    public Guid Id { get; set; }
+    public class EmailGroup
+    {
+        public Guid Id { get; set; }
 
-    [Required]
-    public string Name { get; set; } = string.Empty;
+        [Required]
+        public string Name { get; set; } = string.Empty;
 
-    public List<Email> Emails { get; set; } = new();
+        public List<Email> Emails { get; set; } = new();
+    }
 }

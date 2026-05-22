@@ -1,13 +1,10 @@
 @using Microsoft.AspNetCore.Components.Authorization
-@inject NavigationManager NavigationManager
 
 <Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Components.Layout.MainLayout)">
             <NotAuthorized>
-                @{
-                    NavigationManager.NavigateTo("/login", true);
-                }
+                <RedirectToLogin />
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
