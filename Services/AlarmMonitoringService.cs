@@ -149,17 +149,7 @@ namespace EmailApp.Services
             try
             {
                 var subject = $"[ALARM] {alarm.AlarmMaster.TagName} - Priority {alarm.AlarmMaster.Priority}";
-                var body = $@"
-ALARM NOTIFICATION
-==================
-Tag: {alarm.AlarmMaster.TagName}
-Group: {alarm.AlarmMaster.GroupName}
-Priority: {alarm.AlarmMaster.Priority}
-Time: {alarm.EventStamp:yyyy-MM-dd HH:mm:ss}
-State: {alarm.AlarmState}
-
-Please check immediately.
-";
+                var body = CreateAlarmEmailBody(alarm);
 
                 await emailService.SendBulkEmailAsync(recipients, subject, body);
 
@@ -179,6 +169,21 @@ Please check immediately.
                 await appDb.AlarmEmailTracking.AddAsync(tracking);
                 await appDb.SaveChangesAsync(stoppingToken);
             }
+        }
+
+        private static string CreateAlarmEmailBody(AlarmDetail alarm)
+        {
+            return string.Join(Environment.NewLine, new[]
+            {
+                "Alarm Notification",
+                $"Tag: {alarm.AlarmMaster.TagName}",
+                $"Group: {alarm.AlarmMaster.GroupName}",
+                $"Priority: {alarm.AlarmMaster.Priority}",
+                $"State: {alarm.AlarmState}",
+                $"Event Time: {alarm.EventStamp:yyyy-MM-dd HH:mm:ss}",
+                $"Alarm Detail ID: {alarm.AlarmDetailId}",
+                "Action: Please check immediately."
+            });
         }
 
         private static AlarmEmailTracking CreateTracking(

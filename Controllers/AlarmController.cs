@@ -48,7 +48,7 @@ namespace EmailApp.Controllers
             if (emails.Any())
             {
                 var subject = $"Alarm Triggered: {master.TagName}";
-                var body = $"Alarm {master.TagName} {alarm.AlarmState} at {alarm.EventStamp:yyyy-MM-dd HH:mm:ss}";
+                var body = CreateAlarmEmailBody(alarm, master);
                 
                 await _emailService.SendBulkEmailAsync(emails, subject, body);
             }
@@ -81,6 +81,21 @@ namespace EmailApp.Controllers
                 OperatorName = request.OperatorName,
                 OperatorNode = request.OperatorNode
             };
+        }
+
+        private static string CreateAlarmEmailBody(AlarmDetail alarm, AlarmMaster master)
+        {
+            return string.Join(Environment.NewLine, new[]
+            {
+                "Alarm Notification",
+                $"Tag: {master.TagName}",
+                $"Group: {master.GroupName}",
+                $"Priority: {master.Priority}",
+                $"State: {alarm.AlarmState}",
+                $"Event Time: {alarm.EventStamp:yyyy-MM-dd HH:mm:ss}",
+                $"Alarm Detail ID: {alarm.AlarmDetailId}",
+                "Action: Please check immediately."
+            });
         }
 
         private async Task TrackAlarmEmail(AlarmDetail alarm, IReadOnlyCollection<string> emails)
