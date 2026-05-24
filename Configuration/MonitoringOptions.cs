@@ -4,5 +4,6 @@ namespace EmailApp.Configuration
     {
         public int CheckIntervalSeconds { get; set; } = 10;
         public int LookbackMinutes { get; set; } = 5;
+        public string[] AlarmStates { get; set; } = ["UNACK_ALM", "UNACK_RTN"];
     }
 }

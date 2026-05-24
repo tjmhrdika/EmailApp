@@ -3,6 +3,11 @@ using EmailApp.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Host.UseWindowsService(options =>
+{
+    options.ServiceName = "CIP Station Alarm Notification";
+});
+
 builder.Services.AddApplicationServices(builder.Configuration);
 
 var app = builder.Build();

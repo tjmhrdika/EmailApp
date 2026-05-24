@@ -89,10 +89,12 @@ namespace EmailApp.Services
             DateTime scanTime,
             CancellationToken stoppingToken)
         {
+            var alarmStates = GetConfiguredAlarmStates();
+
             var alarms = await alarmDb.AlarmDetails
                 .AsNoTracking()
                 .Include(ad => ad.AlarmMaster)
-                .Where(ad => ad.AlarmState == "UNACK_ALM")
+                .Where(ad => alarmStates.Contains(ad.AlarmState))
                 .Where(ad => ad.EventStamp > _lastCheckTime && ad.EventStamp <= scanTime)
                 .OrderBy(ad => ad.EventStamp)
                 .Take(100)
@@ -101,8 +103,13 @@ namespace EmailApp.Services
             if (!alarms.Any())
                 return alarms;
 
+            var alarmDetailIds = alarms
+                .Select(alarm => alarm.AlarmDetailId)
+                .ToList();
+
             var trackedAlarmIds = await appDb.AlarmEmailTracking
                 .AsNoTracking()
+                .Where(tracking => alarmDetailIds.Contains(tracking.AlarmDetailId))
                 .Select(t => t.AlarmDetailId)
                 .ToListAsync(stoppingToken);
 
@@ -111,6 +118,19 @@ namespace EmailApp.Services
             return alarms
                 .Where(a => !trackedAlarmIdSet.Contains(a.AlarmDetailId))
                 .ToList();
+        }
+
+        private string[] GetConfiguredAlarmStates()
+        {
+            var states = _options.AlarmStates
+                .Where(state => !string.IsNullOrWhiteSpace(state))
+                .Select(state => state.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            return states.Length == 0
+                ? ["UNACK_ALM", "UNACK_RTN"]
+                : states;
         }
 
         private static async Task<List<string>> LoadRecipients(AppDbContext appDb, CancellationToken stoppingToken)

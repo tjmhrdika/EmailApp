@@ -21,7 +21,7 @@ Alur utama:
 1. User login ke aplikasi.
 2. Admin mengatur SMTP dan daftar penerima email.
 3. Background service membaca alarm baru dari `WWALMDB`.
-4. Jika ada alarm `UNACK_ALM`, sistem mengirim email ke penerima aktif.
+4. Jika ada alarm dengan state yang dikonfigurasi, sistem mengirim email ke penerima aktif.
 5. Status pengiriman dicatat di `AlarmEmailTracking` agar alarm yang sama tidak dikirim berulang.
 
 ## Panduan User
@@ -247,7 +247,11 @@ Contoh aman untuk development:
   "ApiBaseUrl": "http://localhost:5146",
   "Monitoring": {
     "CheckIntervalSeconds": 10,
-    "LookbackMinutes": 5
+    "LookbackMinutes": 5,
+    "AlarmStates": [
+      "UNACK_ALM",
+      "UNACK_RTN"
+    ]
   }
 }
 ```
@@ -337,7 +341,7 @@ Alur kerja:
 
 1. Service berjalan otomatis saat aplikasi start.
 2. Service membaca alarm dari `WWALMDB.dbo.AlarmDetail`.
-3. Alarm yang diproses adalah `AlarmState = 'UNACK_ALM'`.
+3. Alarm yang diproses mengikuti konfigurasi `Monitoring:AlarmStates`.
 4. Service hanya membaca alarm dalam rentang waktu terbaru berdasarkan `LookbackMinutes` dan `_lastCheckTime`.
 5. Service mengecek `AlarmEmailTracking` agar alarm tidak dikirim dua kali.
 6. Email dikirim ke semua address di tabel `Emails`.
@@ -349,7 +353,11 @@ Konfigurasi interval:
 {
   "Monitoring": {
     "CheckIntervalSeconds": 10,
-    "LookbackMinutes": 5
+    "LookbackMinutes": 5,
+    "AlarmStates": [
+      "UNACK_ALM",
+      "UNACK_RTN"
+    ]
   }
 }
 ```
@@ -508,6 +516,67 @@ http://localhost:5146/login
 
 8. Kirim manual email untuk test.
 
+### Windows Service
+
+Aplikasi sudah disiapkan untuk berjalan sebagai Windows Service dengan nama:
+
+```text
+CIP Station Alarm Notification
+```
+
+Publish aplikasi untuk Windows:
+
+```powershell
+.\scripts\windows\publish-service.ps1
+```
+
+Install dan jalankan service dari PowerShell sebagai administrator:
+
+```powershell
+.\scripts\windows\install-service.ps1
+```
+
+Hapus service:
+
+```powershell
+.\scripts\windows\uninstall-service.ps1
+```
+
+Jika ingin menjalankan manual tanpa script:
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained false -o publish
+```
+
+```powershell
+sc.exe create "CIP Station Alarm Notification" binPath= "C:\Path\To\EmailApp\publish\EmailApp.exe" start= auto
+```
+
+Jalankan service:
+
+```powershell
+sc.exe start "CIP Station Alarm Notification"
+```
+
+Stop service:
+
+```powershell
+sc.exe stop "CIP Station Alarm Notification"
+```
+
+Hapus service:
+
+```powershell
+sc.exe delete "CIP Station Alarm Notification"
+```
+
+Catatan deployment:
+
+- Pastikan server Windows punya akses jaringan ke SQL Server `EmailDb` dan `WWALMDB`.
+- Pastikan service account punya permission baca file konfigurasi dan akses jaringan yang diperlukan.
+- Simpan `appsettings.json` production di folder publish atau gunakan environment variable.
+- Test manual email dan alarm notification sebelum service dipakai production.
+
 ### Troubleshooting
 
 #### `dotnet ef` tidak ditemukan
@@ -556,7 +625,7 @@ Cek hal berikut:
 Cek hal berikut:
 
 - Database alarm menggunakan connection string `AlarmDatabase`.
-- Tabel `AlarmDetail` memiliki data baru dengan `AlarmState = 'UNACK_ALM'`.
+- Tabel `AlarmDetail` memiliki data baru dengan `AlarmState` yang masuk di `Monitoring:AlarmStates`, misalnya `UNACK_ALM` atau `UNACK_RTN`.
 - `EventStamp` masuk dalam rentang monitoring.
 - Data belum ada di `AlarmEmailTracking`.
 - Minimal satu recipient tersedia di tabel `Emails`.
