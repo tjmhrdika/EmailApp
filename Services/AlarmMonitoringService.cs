@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Linq.Expressions;
 
 namespace EmailApp.Services
 {
@@ -14,7 +15,6 @@ namespace EmailApp.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AlarmMonitoringService> _logger;
         private readonly MonitoringOptions _options;
-        private DateTime _lastCheckTime;
 
         public AlarmMonitoringService(
             IServiceScopeFactory scopeFactory,
@@ -24,7 +24,6 @@ namespace EmailApp.Services
             _scopeFactory = scopeFactory;
             _logger = logger;
             _options = options.Value;
-            _lastCheckTime = DateTime.Now.AddMinutes(-Math.Max(_options.LookbackMinutes, 60));
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -87,7 +86,6 @@ namespace EmailApp.Services
 
             if (!alarms.Any())
             {
-                UpdateLastCheckTime(alarms, scanTime);
                 return;
             }
 
@@ -96,14 +94,11 @@ namespace EmailApp.Services
             if (!recipients.Any())
             {
                 await TrackAlarmsWithoutRecipients(appDb, alarms, stoppingToken);
-                UpdateLastCheckTime(alarms, scanTime);
                 return;
             }
 
             var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
             await ProcessAlarmBatch(alarms, recipients, emailService, appDb, stoppingToken);
-
-            UpdateLastCheckTime(alarms, scanTime);
         }
 
         private async Task<List<AlarmDetail>> LoadUnsentAlarms(
@@ -113,51 +108,104 @@ namespace EmailApp.Services
             CancellationToken stoppingToken)
         {
             var alarmStates = GetConfiguredAlarmStates();
+            var lookbackStart = scanTime.AddDays(-GetProcessingLookbackDays());
+            var unsentAlarms = new List<AlarmDetail>();
+            var lastScannedAlarmDetailId = 0;
+            const int batchSize = 250;
+            const int maxBatches = 20;
 
-            var alarmQuery = alarmDb.AlarmDetails
-                .AsNoTracking()
-                .Include(ad => ad.AlarmMaster)
-                .Where(ad => ad.EventStamp > _lastCheckTime && ad.EventStamp <= scanTime);
-
-            if (alarmStates.Length == 1)
+            for (var batchIndex = 0; batchIndex < maxBatches && unsentAlarms.Count < 100; batchIndex++)
             {
-                var state = alarmStates[0];
-                alarmQuery = alarmQuery.Where(ad => ad.AlarmState == state);
-            }
-            else if (alarmStates.Length == 2)
-            {
-                var firstState = alarmStates[0];
-                var secondState = alarmStates[1];
-                alarmQuery = alarmQuery.Where(ad => ad.AlarmState == firstState || ad.AlarmState == secondState);
-            }
-            else
-            {
-                alarmQuery = alarmQuery.Where(ad => alarmStates.Contains(ad.AlarmState));
+                var alarmQuery = alarmDb.AlarmDetails
+                    .AsNoTracking()
+                    .Include(ad => ad.AlarmMaster)
+                    .Where(ad => ad.AlarmDetailId > lastScannedAlarmDetailId)
+                    .Where(ad => ad.EventStamp >= lookbackStart && ad.EventStamp <= scanTime);
+
+                alarmQuery = ApplyAlarmStateFilter(alarmQuery, alarmStates);
+
+                var alarms = await alarmQuery
+                    .OrderBy(ad => ad.AlarmDetailId)
+                    .Take(batchSize)
+                    .ToListAsync(stoppingToken);
+
+                if (!alarms.Any())
+                    break;
+
+                lastScannedAlarmDetailId = alarms.Max(alarm => alarm.AlarmDetailId);
+
+                var trackedAlarmIdSet = await LoadTrackedAlarmIds(appDb, alarms, stoppingToken);
+
+                unsentAlarms.AddRange(alarms
+                    .Where(alarm => !trackedAlarmIdSet.Contains(alarm.AlarmDetailId))
+                    .OrderBy(alarm => alarm.AlarmDetailId)
+                    .Take(100 - unsentAlarms.Count));
             }
 
-            var alarms = await alarmQuery
-                .OrderBy(ad => ad.EventStamp)
-                .Take(100)
-                .ToListAsync(stoppingToken);
+            return unsentAlarms;
+        }
 
-            if (!alarms.Any())
-                return alarms;
+        private int GetProcessingLookbackDays()
+        {
+            return _options.ProcessingLookbackDays > 0
+                ? _options.ProcessingLookbackDays
+                : 2;
+        }
 
+        private static async Task<HashSet<int>> LoadTrackedAlarmIds(
+            AppDbContext appDb,
+            IReadOnlyCollection<AlarmDetail> alarms,
+            CancellationToken stoppingToken)
+        {
             var alarmDetailIds = alarms
                 .Select(alarm => alarm.AlarmDetailId)
                 .ToList();
 
+            var alarmDetailIdSet = alarmDetailIds.ToHashSet();
+            var minAlarmDetailId = alarmDetailIds.Min();
+            var maxAlarmDetailId = alarmDetailIds.Max();
+
             var trackedAlarmIds = await appDb.AlarmEmailTracking
                 .AsNoTracking()
-                .Where(tracking => alarmDetailIds.Contains(tracking.AlarmDetailId))
-                .Select(t => t.AlarmDetailId)
+                .Where(tracking => tracking.AlarmDetailId >= minAlarmDetailId && tracking.AlarmDetailId <= maxAlarmDetailId)
+                .Select(tracking => tracking.AlarmDetailId)
                 .ToListAsync(stoppingToken);
 
-            var trackedAlarmIdSet = trackedAlarmIds.ToHashSet();
+            return trackedAlarmIds
+                .Where(alarmDetailIdSet.Contains)
+                .ToHashSet();
+        }
 
-            return alarms
-                .Where(a => !trackedAlarmIdSet.Contains(a.AlarmDetailId))
-                .ToList();
+        private static IQueryable<AlarmDetail> ApplyAlarmStateFilter(IQueryable<AlarmDetail> query, string[] alarmStates)
+        {
+            if (alarmStates.Length == 0)
+                return query.Where(_ => false);
+
+            if (alarmStates.Length == 1)
+            {
+                var state = alarmStates[0];
+                return query.Where(ad => ad.AlarmState == state);
+            }
+
+            if (alarmStates.Length == 2)
+            {
+                var firstState = alarmStates[0];
+                var secondState = alarmStates[1];
+                return query.Where(ad => ad.AlarmState == firstState || ad.AlarmState == secondState);
+            }
+
+            var parameter = Expression.Parameter(typeof(AlarmDetail), "alarm");
+            var alarmState = Expression.Property(parameter, nameof(AlarmDetail.AlarmState));
+            Expression? filter = null;
+
+            foreach (var state in alarmStates)
+            {
+                var stateFilter = Expression.Equal(alarmState, Expression.Constant(state));
+                filter = filter == null ? stateFilter : Expression.OrElse(filter, stateFilter);
+            }
+
+            var lambda = Expression.Lambda<Func<AlarmDetail, bool>>(filter!, parameter);
+            return query.Where(lambda);
         }
 
         private string[] GetConfiguredAlarmStates()
@@ -276,19 +324,6 @@ namespace EmailApp.Services
                 ErrorMessage = errorMessage,
                 CreatedAt = DateTime.Now
             };
-        }
-
-        private void UpdateLastCheckTime(IReadOnlyCollection<AlarmDetail> alarms, DateTime scanTime)
-        {
-            if (!alarms.Any())
-            {
-                _lastCheckTime = scanTime;
-                return;
-            }
-
-            _lastCheckTime = alarms.Count >= 100
-                ? alarms.Max(alarm => alarm.EventStamp).AddTicks(-1)
-                : scanTime;
         }
     }
 }

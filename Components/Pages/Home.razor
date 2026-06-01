@@ -262,10 +262,20 @@
 
             var alarmDetailIds = alarmItems.Select(item => item.AlarmDetailId).ToList();
 
-            var trackings = await appDb.AlarmEmailTracking
-                .AsNoTracking()
-                .Where(tracking => alarmDetailIds.Contains(tracking.AlarmDetailId))
-                .ToDictionaryAsync(tracking => tracking.AlarmDetailId);
+            var alarmDetailIdSet = alarmDetailIds.ToHashSet();
+            var minAlarmDetailId = alarmDetailIds.Count == 0 ? 0 : alarmDetailIds.Min();
+            var maxAlarmDetailId = alarmDetailIds.Count == 0 ? 0 : alarmDetailIds.Max();
+
+            var trackingCandidates = alarmDetailIds.Count == 0
+                ? new List<AlarmEmailTracking>()
+                : await appDb.AlarmEmailTracking
+                    .AsNoTracking()
+                    .Where(tracking => tracking.AlarmDetailId >= minAlarmDetailId && tracking.AlarmDetailId <= maxAlarmDetailId)
+                    .ToListAsync();
+
+            var trackings = trackingCandidates
+                .Where(tracking => alarmDetailIdSet.Contains(tracking.AlarmDetailId))
+                .ToDictionary(tracking => tracking.AlarmDetailId);
 
             foreach (var alarm in alarmItems)
             {
