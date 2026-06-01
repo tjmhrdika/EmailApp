@@ -1,0 +1,42 @@
+﻿@inherits LayoutComponentBase
+@inject IJSRuntime JS
+
+<div style="display:flex;height:100vh;overflow:hidden;background:#f1f3f6;font-family:'Segoe UI',system-ui,sans-serif;">
+
+    <div id="sidebar-overlay"
+         style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:40;"
+         @onclick="CloseSidebar">
+    </div>
+
+    <div id="sidebar"
+         style="width:256px;flex-shrink:0;position:fixed;top:0;left:0;height:100vh;z-index:50;transition:transform 0.25s ease;">
+        <NavMenu OnClose="CloseSidebar" />
+    </div>
+
+    <div id="main-content"
+         style="flex:1;display:flex;flex-direction:column;margin-left:256px;min-width:0;transition:margin 0.25s ease;">
+
+        <div id="topbar"
+             style="display:none;align-items:center;gap:12px;padding:12px 16px;background:#ffffff;border-bottom:1px solid #e8eaed;position:sticky;top:0;z-index:30;">
+            <button id="hamburger-btn"
+                    style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;background:none;border:1px solid #e8eaed;border-radius:8px;cursor:pointer;color:#5f6368;"
+                    @onclick="OpenSidebar">
+                <i class="bi bi-list" style="font-size:18px;"></i>
+            </button>
+            <span style="font-size:14px;font-weight:600;color:#1a1a2e;">CIP Station</span>
+        </div>
+
+        <main style="flex:1;overflow:auto;">
+            <div style="padding:24px;max-width:1440px;">
+                @Body
+            </div>
+        </main>
+
+    </div>
+
+</div>
+
+@code {
+    void OpenSidebar() => JS.InvokeVoidAsync("erpToggleSidebar", true);
+    void CloseSidebar() => JS.InvokeVoidAsync("erpToggleSidebar", false);
+}

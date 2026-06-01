@@ -1,0 +1,50 @@
+# =========================
+# BUILD OUTPUT (WAJIB)
+# =========================
+bin/
+obj/
+
+# =========================
+# IDE / EDITOR
+# =========================
+.vs/
+.vscode/
+.idea/
+
+# =========================
+# USER / TEMP FILES
+# =========================
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =========================
+# LOGS
+# =========================
+*.log
+
+# =========================
+# OS FILES
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# STATIC WEB ASSETS CACHE (Blazor)
+# =========================
+obj/Debug/net8.0/staticwebassets/
+obj/Release/net8.0/staticwebassets/
+
+# =========================
+# ENV / SECRET
+# =========================
+appsettings.Development.json
+
+# =========================
+# OPTIONAL (kalau nanti ada)
+# =========================
+node_modules/
+dist/
+build/
