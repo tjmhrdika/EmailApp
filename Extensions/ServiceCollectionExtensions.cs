@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 
 namespace EmailApp.Extensions
@@ -27,6 +28,10 @@ namespace EmailApp.Extensions
 
             services.Configure<EmailOptions>(configuration.GetSection("Email"));
             services.Configure<MonitoringOptions>(configuration.GetSection("Monitoring"));
+            services.Configure<HostOptions>(options =>
+            {
+                options.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore;
+            });
 
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ISmtpSettingsService, SmtpSettingsService>();

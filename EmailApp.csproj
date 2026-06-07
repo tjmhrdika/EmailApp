@@ -17,7 +17,25 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.5" />
     <PackageReference Include="MimeKit" Version="4.15.1" />
+    <PackageReference Include="System.Threading.AccessControl" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="dist\**" />
+    <Content Remove="publish\**" />
+    <Compile Remove="tools\**" />
+    <None Remove="dist\**" />
+    <None Remove="publish\**" />
+    <None Remove="tools\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="scripts\windows\install-service.ps1" CopyToPublishDirectory="Always" TargetPath="install-service.ps1" />
+    <Content Include="scripts\windows\uninstall-service.ps1" CopyToPublishDirectory="Always" TargetPath="uninstall-service.ps1" />
+    <Content Include="scripts\windows\install-service.bat" CopyToPublishDirectory="Always" TargetPath="install-service.bat" />
+    <Content Include="scripts\windows\uninstall-service.bat" CopyToPublishDirectory="Always" TargetPath="uninstall-service.bat" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,24 @@
 using EmailApp.Components;
 using EmailApp.Extensions;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Hosting.WindowsServices;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseWindowsService(options =>
+{
+    options.ServiceName = "CIP Station Alarm Notification";
+});
+
+if (string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
+{
+    builder.WebHost.UseUrls("http://0.0.0.0:5146");
+}
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys")))
+    .SetApplicationName("EmailApp");
 
 builder.Services.AddApplicationServices(builder.Configuration);
 
@@ -36,5 +53,24 @@ app.UseStatusCodePages(context =>
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapControllers();
+
+if (!WindowsServiceHelpers.IsWindowsService())
+{
+    app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "http://localhost:5146",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // The server is still usable even if Windows cannot open a browser.
+        }
+    });
+}
 
 app.Run();

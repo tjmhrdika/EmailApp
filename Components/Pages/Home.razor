@@ -1,93 +1,228 @@
 ﻿@page "/"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
-@using EmailApp.Models
 @using EmailApp.Data
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AlarmDbContext> AlarmDbFactory
+@inject IDbContextFactory<AppDbContext> AppDbFactory
 
 <PageTitle>Dashboard</PageTitle>
 
-<div style="max-width-100px;">
-    <div style="margin-bottom:28px;">
-        <h2 style="font-size:22px;font-weight:700;color:#1a1a2e;margin:0 0 4px 0;">Dashboard</h2>
-        <p style="font-size:13px;color:#9aa0ab;margin:0;">CIP Station - Laporan Pengajuan Alarm</p>
+<div style="width:100%;max-width:1600px;margin:0 auto;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;">
+        <div>
+            <h2 style="font-size:22px;font-weight:800;color:#0f172a;margin:0 0 4px 0;">Dashboard</h2>
+            <p style="font-size:13px;color:#64748b;margin:0;">Monitoring alarm dan status pengiriman email</p>
+        </div>
+        <button @onclick="LoadAlarms"
+                disabled="@isLoading"
+                style="height:36px;padding:0 14px;border:1px solid #cbd5e1;border-radius:8px;background:#ffffff;color:#0f172a;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <i class="bi bi-arrow-clockwise"></i>
+            Refresh
+        </button>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Total</div>
-            <div style="font-size:28px;font-weight:800;color:#1a1a2e;">@alarms.Count()</div>
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div style="margin-bottom:16px;padding:12px 14px;border:1px solid #fecaca;background:#fef2f2;color:#991b1b;border-radius:8px;font-size:13px;">
+            @errorMessage
         </div>
-        <div style="background:#fff;border-radius:12px;border:1px solid #fca5a5;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Unack</div>
-            <div style="font-size:28px;font-weight:800;color:#dc2626;">@alarms.Count(a => a.AlarmState == "UNACK_ALM")</div>
+    }
+
+    <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px;">
+        <div style="background:#ffffff;border:1px solid #dbe4f0;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;">Total Alarm</div>
+            <div style="font-size:28px;font-weight:800;color:#0f172a;line-height:1.1;margin-top:8px;">@filteredAlarms.Count</div>
         </div>
-        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Priority 500</div>
-            <div style="font-size:28px;font-weight:800;color:#f59e0b;">@alarms.Count(a => a.Priority == 500)</div>
+        <div style="background:#ffffff;border:1px solid #dbe4f0;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;">Unack Alarm</div>
+            <div style="font-size:28px;font-weight:800;color:#dc2626;line-height:1.1;margin-top:8px;">@filteredAlarms.Count(item => item.AlarmState == "UNACK_ALM")</div>
         </div>
-        <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;padding:20px;">
-            <div style="font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Groups</div>
-            <div style="font-size:28px;font-weight:800;color:#1a73e8;">@alarms.Select(a => a.GroupName).Distinct().Count()</div>
+        <div style="background:#ffffff;border:1px solid #dbe4f0;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;">Return Unack</div>
+            <div style="font-size:28px;font-weight:800;color:#0f766e;line-height:1.1;margin-top:8px;">@filteredAlarms.Count(item => item.AlarmState == "UNACK_RTN")</div>
+        </div>
+        <div style="background:#ffffff;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:800;color:#15803d;text-transform:uppercase;">Email Sent</div>
+            <div style="font-size:28px;font-weight:800;color:#16a34a;line-height:1.1;margin-top:8px;">@filteredAlarms.Count(item => item.EmailSent)</div>
+        </div>
+        <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:800;color:#c2410c;text-transform:uppercase;">Failed / Pending</div>
+            <div style="font-size:28px;font-weight:800;color:#ea580c;line-height:1.1;margin-top:8px;">@filteredAlarms.Count(item => !item.EmailSent)</div>
         </div>
     </div>
 
-    <div style="background:#fff;border-radius:12px;border:1px solid #e8eaed;overflow:hidden;">
-        <div style="padding:20px 24px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between;">
-            <h5 style="font-size:15px;font-weight:600;color:#1a1a2e;margin:0;">Alarm Log</h5>
-            <div style="display:flex;gap:8px;">
-                <span style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;color:#92400e;">
-                    @alarms.Count(a => a.AlarmState == "UNACK_ALM") Unack
-                </span>
-                <span style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;color:#991b1b;">
-                    @alarms.Count() Total
-                </span>
+    <div style="background:#ffffff;border:1px solid #dbe4f0;border-radius:8px;margin-bottom:16px;padding:14px;display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end;">
+        <div>
+            <label style="display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Search</label>
+            <input @bind="SearchTerm"
+                   @bind:event="oninput"
+                   placeholder="Cari tag, group, state, atau recipient..."
+                   style="width:100%;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 12px;font-size:13px;color:#0f172a;background:#ffffff;" />
+        </div>
+        <div>
+            <label style="display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Alarm State</label>
+            <select @bind="SelectedState"
+                    style="width:100%;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 10px;font-size:13px;color:#0f172a;background:#ffffff;">
+                <option value="">All states</option>
+                @foreach (var state in alarmStates)
+                {
+                    <option value="@state">@state</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label style="display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Email Status</label>
+            <select @bind="SelectedDeliveryStatus"
+                    style="width:100%;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 10px;font-size:13px;color:#0f172a;background:#ffffff;">
+                <option value="">All delivery</option>
+                <option value="Sent">Sent</option>
+                <option value="Failed">Failed</option>
+                <option value="Not Sent">Not Sent</option>
+                <option value="Not Processed">Not Processed</option>
+            </select>
+        </div>
+        <div>
+            <label style="display:block;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;margin-bottom:6px;">Range</label>
+            <select @bind="lookbackDays"
+                    style="width:100%;height:38px;border:1px solid #cbd5e1;border-radius:8px;padding:0 10px;font-size:13px;color:#0f172a;background:#ffffff;">
+                <option value="1">1 day</option>
+                <option value="3">3 days</option>
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+                <option value="30">30 days</option>
+            </select>
+        </div>
+        <button @onclick="LoadAlarms"
+                disabled="@isLoading"
+                style="height:38px;padding:0 16px;border:1px solid #2563eb;border-radius:8px;background:#2563eb;color:#ffffff;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px;justify-content:center;cursor:pointer;">
+            <i class="bi bi-funnel"></i>
+            Apply
+        </button>
+    </div>
+
+    <div style="background:#ffffff;border:1px solid #dbe4f0;border-radius:8px;overflow:hidden;">
+        <div style="padding:14px 16px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div>
+                <h5 style="font-size:15px;font-weight:800;color:#0f172a;margin:0;">Alarm Delivery Log</h5>
+                <p style="font-size:12px;color:#64748b;margin:3px 0 0 0;">Menampilkan @filteredAlarms.Count dari @alarms.Count alarm terakhir</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                <span style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;color:#1d4ed8;">@alarmStates.Count states</span>
+                <span style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:700;color:#15803d;">@filteredAlarms.Sum(item => item.RecipientCount) recipients</span>
             </div>
         </div>
-        <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                <thead>
-                    <tr style="background:#f8fafc;">
-                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Time</th>
-                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">State</th>
-                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Tag</th>
-                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Group</th>
-                        <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#9aa0ab;text-transform:uppercase;letter-spacing:0.5px;">Priority</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in alarms.OrderByDescending(x => x.EventStamp))
-                    {
-                        <tr style="border-top:1px solid #f0f0f0;background:@(item.AlarmState == "UNACK_ALM" ? "#fff8f8" : "white");">
-                            <td style="padding:12px 16px;color:#5f6368;font-size:13px;">@item.EventStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                            <td style="padding:12px 16px;">
-                                <span style="background:@(item.AlarmState == "UNACK_ALM" ? "#fee2e2" : "#f4f6f9");color:@(item.AlarmState == "UNACK_ALM" ? "#dc2626" : "#5f6368");padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;">
-                                    @item.AlarmState
-                                </span>
-                            </td>
-                            <td style="padding:12px 16px;color:#1a1a2e;font-weight:500;">@item.TagName</td>
-                            <td style="padding:12px 16px;color:#5f6368;">@item.GroupName</td>
-                            <td style="padding:12px 16px;color:@(item.Priority == 500 ? "#f59e0b" : "#1a1a2e");font-weight:@(item.Priority == 500 ? "700" : "400");">@item.Priority</td>
+
+        @if (isLoading)
+        {
+            <div style="padding:28px;text-align:center;color:#64748b;font-size:13px;">Loading alarm data...</div>
+        }
+        else if (!filteredAlarms.Any())
+        {
+            <div style="padding:28px;text-align:center;color:#64748b;font-size:13px;">Tidak ada alarm sesuai filter.</div>
+        }
+        else
+        {
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:1180px;">
+                    <thead>
+                        <tr style="background:#f8fafc;">
+                            <th style="@HeaderCellStyle">Time</th>
+                            <th style="@HeaderCellStyle">State</th>
+                            <th style="@HeaderCellStyle">Tag</th>
+                            <th style="@HeaderCellStyle">Group</th>
+                            <th style="@HeaderCellStyle">Priority</th>
+                            <th style="@HeaderCellStyle">Email Status</th>
+                            <th style="@HeaderCellStyle">Sent At</th>
+                            <th style="@HeaderCellStyle">Recipients</th>
+                            <th style="@HeaderCellStyle">Error</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in filteredAlarms)
+                        {
+                            <tr style="border-top:1px solid #e2e8f0;background:@GetRowBackground(item);">
+                                <td style="@BodyCellStyle;color:#475569;white-space:nowrap;">@item.EventStamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                <td style="@BodyCellStyle">
+                                    <span style="@GetStateBadgeStyle(item.AlarmState)">@item.AlarmState</span>
+                                </td>
+                                <td style="@BodyCellStyle;color:#0f172a;font-weight:700;min-width:220px;">@item.TagName</td>
+                                <td style="@BodyCellStyle;color:#475569;min-width:150px;">@item.GroupName</td>
+                                <td style="@BodyCellStyle;color:@GetPriorityColor(item.Priority);font-weight:800;">@item.Priority</td>
+                                <td style="@BodyCellStyle">
+                                    <span style="@GetDeliveryBadgeStyle(item.DeliveryStatus)">@item.DeliveryStatus</span>
+                                </td>
+                                <td style="@BodyCellStyle;color:#475569;white-space:nowrap;">@(item.EmailSentAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-")</td>
+                                <td style="@BodyCellStyle;color:#334155;min-width:260px;">
+                                    @if (item.Recipients.Any())
+                                    {
+                                        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                                            @foreach (var recipient in item.Recipients.Take(4))
+                                            {
+                                                <span title="@recipient" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:4px 8px;font-size:12px;color:#334155;">@recipient</span>
+                                            }
+                                            @if (item.Recipients.Count > 4)
+                                            {
+                                                <span style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:4px 8px;font-size:12px;color:#1d4ed8;font-weight:700;">+@(item.Recipients.Count - 4)</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span style="color:#94a3b8;">-</span>
+                                    }
+                                </td>
+                                <td style="@BodyCellStyle;color:#b91c1c;min-width:220px;">@(string.IsNullOrWhiteSpace(item.ErrorMessage) ? "-" : item.ErrorMessage)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 </div>
 
 @code {
-    private List<AlarmData> alarms = new();
+    private const string HeaderCellStyle = "padding:12px 14px;text-align:left;font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;white-space:nowrap;";
+    private const string BodyCellStyle = "padding:12px 14px;vertical-align:top;font-size:13px;";
 
-    private class AlarmData
+    private List<AlarmDashboardItem> alarms = new();
+    private List<AlarmDashboardItem> filteredAlarms = new();
+    private List<string> alarmStates = new();
+    private string selectedState = string.Empty;
+    private string selectedDeliveryStatus = string.Empty;
+    private string searchTerm = string.Empty;
+    private int lookbackDays = 7;
+    private bool isLoading;
+    private string? errorMessage;
+
+    private string SearchTerm
     {
-        public int AlarmDetailId { get; set; }
-        public int AlarmId { get; set; }
-        public string AlarmState { get; set; } = string.Empty;
-        public DateTime EventStamp { get; set; }
-        public string TagName { get; set; } = string.Empty;
-        public string GroupName { get; set; } = string.Empty;
-        public short Priority { get; set; }
+        get => searchTerm;
+        set
+        {
+            searchTerm = value;
+            ApplyFilters();
+        }
+    }
+
+    private string SelectedState
+    {
+        get => selectedState;
+        set
+        {
+            selectedState = value;
+            ApplyFilters();
+        }
+    }
+
+    private string SelectedDeliveryStatus
+    {
+        get => selectedDeliveryStatus;
+        set
+        {
+            selectedDeliveryStatus = value;
+            ApplyFilters();
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -97,23 +232,183 @@
 
     private async Task LoadAlarms()
     {
-        await using var db = await AlarmDbFactory.CreateDbContextAsync();
+        isLoading = true;
+        errorMessage = null;
 
-        alarms = await db.AlarmDetails
-            .Include(ad => ad.AlarmMaster)
-            .Where(ad => ad.EventStamp >= DateTime.UtcNow.AddDays(-7))
-            .Select(ad => new AlarmData
+        try
+        {
+            await using var alarmDb = await AlarmDbFactory.CreateDbContextAsync();
+            await using var appDb = await AppDbFactory.CreateDbContextAsync();
+
+            var startDate = DateTime.Now.AddDays(-lookbackDays);
+
+            var alarmItems = await alarmDb.AlarmDetails
+                .AsNoTracking()
+                .Include(ad => ad.AlarmMaster)
+                .Where(ad => ad.EventStamp >= startDate)
+                .OrderByDescending(ad => ad.EventStamp)
+                .Take(300)
+                .Select(ad => new AlarmDashboardItem
+                {
+                    AlarmDetailId = ad.AlarmDetailId,
+                    AlarmId = ad.AlarmId,
+                    AlarmState = ad.AlarmState,
+                    EventStamp = ad.EventStamp,
+                    TagName = ad.AlarmMaster.TagName,
+                    GroupName = ad.AlarmMaster.GroupName,
+                    Priority = ad.AlarmMaster.Priority
+                })
+                .ToListAsync();
+
+            var alarmDetailIds = alarmItems.Select(item => item.AlarmDetailId).ToList();
+
+            var alarmDetailIdSet = alarmDetailIds.ToHashSet();
+            var minAlarmDetailId = alarmDetailIds.Count == 0 ? 0 : alarmDetailIds.Min();
+            var maxAlarmDetailId = alarmDetailIds.Count == 0 ? 0 : alarmDetailIds.Max();
+
+            var trackingCandidates = alarmDetailIds.Count == 0
+                ? new List<AlarmEmailTracking>()
+                : await appDb.AlarmEmailTracking
+                    .AsNoTracking()
+                    .Where(tracking => tracking.AlarmDetailId >= minAlarmDetailId && tracking.AlarmDetailId <= maxAlarmDetailId)
+                    .ToListAsync();
+
+            var trackings = trackingCandidates
+                .Where(tracking => alarmDetailIdSet.Contains(tracking.AlarmDetailId))
+                .ToDictionary(tracking => tracking.AlarmDetailId);
+
+            foreach (var alarm in alarmItems)
             {
-                AlarmDetailId = ad.AlarmDetailId,
-                AlarmId = ad.AlarmId,
-                AlarmState = ad.AlarmState,
-                EventStamp = ad.EventStamp,
-                TagName = ad.AlarmMaster.TagName,
-                GroupName = ad.AlarmMaster.GroupName,
-                Priority = ad.AlarmMaster.Priority
-            })
-            .OrderByDescending(ad => ad.EventStamp)
-            .Take(100)
-            .ToListAsync();
+                if (!trackings.TryGetValue(alarm.AlarmDetailId, out var tracking))
+                    continue;
+
+                alarm.EmailSent = tracking.EmailSent;
+                alarm.EmailSentAt = tracking.EmailSentAt;
+                alarm.EmailRecipients = tracking.EmailRecipients ?? string.Empty;
+                alarm.ErrorMessage = tracking.ErrorMessage;
+            }
+
+            alarms = alarmItems;
+            alarmStates = alarms
+                .Select(item => item.AlarmState)
+                .Where(state => !string.IsNullOrWhiteSpace(state))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(state => state)
+                .ToList();
+
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load dashboard data: {ex.Message}";
+            alarms = new();
+            filteredAlarms = new();
+            alarmStates = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredAlarms = alarms
+            .Where(MatchesState)
+            .Where(MatchesDeliveryStatus)
+            .Where(MatchesSearch)
+            .OrderByDescending(item => item.EventStamp)
+            .ToList();
+    }
+
+    private bool MatchesState(AlarmDashboardItem item)
+    {
+        return string.IsNullOrWhiteSpace(selectedState) ||
+               item.AlarmState.Equals(selectedState, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool MatchesDeliveryStatus(AlarmDashboardItem item)
+    {
+        return string.IsNullOrWhiteSpace(selectedDeliveryStatus) ||
+               item.DeliveryStatus.Equals(selectedDeliveryStatus, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool MatchesSearch(AlarmDashboardItem item)
+    {
+        if (string.IsNullOrWhiteSpace(searchTerm))
+            return true;
+
+        var value = searchTerm.Trim();
+
+        return item.TagName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+               item.GroupName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+               item.AlarmState.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+               item.EmailRecipients.Contains(value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GetStateBadgeStyle(string state)
+    {
+        return state switch
+        {
+            "UNACK_ALM" => "display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:11px;font-weight:800;",
+            "UNACK_RTN" => "display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#ecfdf5;border:1px solid #a7f3d0;color:#047857;font-size:11px;font-weight:800;",
+            _ => "display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#f8fafc;border:1px solid #e2e8f0;color:#475569;font-size:11px;font-weight:800;"
+        };
+    }
+
+    private static string GetDeliveryBadgeStyle(string status)
+    {
+        return status switch
+        {
+            "Sent" => "display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:11px;font-weight:800;",
+            "Failed" => "display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:11px;font-weight:800;",
+            "Not Sent" => "display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-size:11px;font-weight:800;",
+            _ => "display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;background:#f8fafc;border:1px solid #e2e8f0;color:#475569;font-size:11px;font-weight:800;"
+        };
+    }
+
+    private static string GetPriorityColor(short priority)
+    {
+        return priority >= 500 ? "#dc2626" : priority >= 300 ? "#d97706" : "#334155";
+    }
+
+    private static string GetRowBackground(AlarmDashboardItem item)
+    {
+        if (item.DeliveryStatus == "Failed")
+            return "#fff7f7";
+
+        return item.AlarmState == "UNACK_ALM" ? "#fffafa" : "#ffffff";
+    }
+
+    private class AlarmDashboardItem
+    {
+        public int AlarmDetailId { get; set; }
+        public int AlarmId { get; set; }
+        public string AlarmState { get; set; } = string.Empty;
+        public DateTime EventStamp { get; set; }
+        public string TagName { get; set; } = string.Empty;
+        public string GroupName { get; set; } = string.Empty;
+        public short Priority { get; set; }
+        public bool EmailSent { get; set; }
+        public DateTime? EmailSentAt { get; set; }
+        public string EmailRecipients { get; set; } = string.Empty;
+        public string? ErrorMessage { get; set; }
+        public List<string> Recipients => EmailRecipients
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+        public int RecipientCount => Recipients.Count;
+        public string DeliveryStatus
+        {
+            get
+            {
+                if (EmailSent)
+                    return "Sent";
+
+                if (!string.IsNullOrWhiteSpace(ErrorMessage))
+                    return "Failed";
+
+                return string.IsNullOrWhiteSpace(EmailRecipients) ? "Not Processed" : "Not Sent";
+            }
+        }
     }
 }

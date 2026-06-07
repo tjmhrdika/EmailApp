@@ -1,394 +1,680 @@
-```markdown
-# Alarm Notification System
+# Alarm Notification Email App
 
-Sistem monitoring alarm otomatis dari database AVEVA (Wonderware) yang mengirimkan notifikasi email ke penerima terdaftar.
+Aplikasi ini digunakan untuk memonitor alarm dari database HMI/SCADA AVEVA Wonderware dan mengirimkan notifikasi email ke daftar penerima yang dikelola dari web aplikasi.
 
-## 📋 Daftar Isi
+Dokumentasi ini dibagi menjadi dua bagian:
 
-- [Fitur](#-fitur)
-- [Arsitektur](#-arsitektur)
-- [Teknologi](#-teknologi)
-- [Struktur Database](#-struktur-database)
-- [Instalasi](#-instalasi)
-- [Konfigurasi](#-konfigurasi)
-- [Cara Penggunaan](#-cara-penggunaan)
-- [API Endpoints](#-api-endpoints)
-- [Monitoring](#-monitoring)
-- [Troubleshooting](#-troubleshooting)
-- [Deployment](#-deployment)
+- Panduan User: untuk operator/admin yang memakai aplikasi.
+- Panduan Programmer: untuk developer yang melakukan setup, maintenance, dan pengembangan.
 
----
+## Ringkasan Sistem
 
-## 🚀 Fitur
+EmailApp adalah aplikasi ASP.NET Core Blazor Server dengan dua koneksi database:
 
-| Fitur | Deskripsi |
-|-------|-----------|
-| 🔔 **Monitoring Alarm Real-time** | Service background mengecek alarm baru setiap 10 detik |
-| 📧 **Notifikasi Email Otomatis** | Kirim email ke semua penerima terdaftar saat alarm baru |
-| 📊 **Dashboard Statistik** | Visualisasi data alarm (total, unack, priority, groups) |
-| 👥 **User Management** | Kelola user dengan role admin/user |
-| 📬 **Email Settings** | Kelola SMTP, penerima email, dan kirim email manual |
-| 🔐 **Authentication** | Login dengan JWT token dan role-based access |
-| 📝 **Tracking Pengiriman** | Catat semua email yang sudah dikirim |
+| Database | Fungsi |
+| --- | --- |
+| `EmailDb` | Database aplikasi untuk user, penerima email, SMTP, group email, dan tracking pengiriman |
+| `WWALMDB` | Database alarm dari HMI/SCADA yang berisi `AlarmMaster` dan `AlarmDetail` |
 
----
+Alur utama:
 
-## 🏗️ Arsitektur
+1. User login ke aplikasi.
+2. Admin mengatur SMTP dan daftar penerima email.
+3. Background service membaca alarm baru dari `WWALMDB`.
+4. Jika ada alarm dengan state yang dikonfigurasi, sistem mengirim email ke penerima aktif.
+5. Status pengiriman dicatat di `AlarmEmailTracking` agar alarm yang sama tidak dikirim berulang.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    ALARM NOTIFICATION SYSTEM                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────────┐    ┌──────────────────┐                   │
-│  │   Alarm Database │    │   Email Database │                   │
-│  │  (AVEVA/Wonder)  │    │   (Aplikasi)     │                   │
-│  │                  │    │                  │                   │
-│  │ • AlarmDetail    │    │ • Users          │                   │
-│  │ • AlarmMaster    │    │ • Emails         │                   │
-│  │ • Cause          │    │ • Groups         │                   │
-│  │ • Comment        │    │ • UserGroups     │                   │
-│  │ • OperatorDetails│    │ • AlarmEmailTracking│                │
-│  └────────┬─────────┘    └────────┬─────────┘                   │
-│           │                       │                             │
-│           ▼                       ▼                             │
-│  ┌──────────────────────────────────────────────┐              │
-│  │           Background Monitoring Service       │              │
-│  │         (AlarmMonitoringService)              │              │
-│  │     Cek alarm baru setiap 10 detik            │              │
-│  │     Status: UNACK_ALM                         │              │
-│  └──────────────────┬───────────────────────────┘              │
-│                     │                                            │
-│                     ▼                                            │
-│  ┌──────────────────────────────────────────────┐              │
-│  │              Email Service                    │              │
-│  │         (SMTP / MailKit)                      │              │
-│  └──────────────────┬───────────────────────────┘              │
-│                     │                                            │
-│                     ▼                                            │
-│              ┌──────────────┐                                   │
-│              │  Email Server │                                   │
-│              └──────────────┘                                   │
-│                                                                  │
-│  ┌──────────────────────────────────────────────┐              │
-│  │              Web Interface (Blazor)           │              │
-│  │  • Dashboard  • Users  • Emails              │              │
-│  │  • Email Settings                           │              │
-│  └──────────────────────────────────────────────┘              │
-└─────────────────────────────────────────────────────────────────┘
-```
+## Panduan User
 
----
+### Login
 
-## 🛠️ Teknologi
+1. Buka aplikasi di browser.
+2. Masuk ke halaman `/login`.
+3. Isi username dan password.
+4. Setelah berhasil login, user akan diarahkan ke halaman utama.
+
+Jika halaman utama menampilkan login kembali setelah refresh, pastikan login berhasil dan cookie browser tidak diblokir.
+
+### Home
+
+Menu `Home` menampilkan data alarm dari database alarm. Halaman ini digunakan untuk melihat kondisi alarm dan ringkasan data yang sedang dipantau.
+
+### User Management
+
+Menu `Users` digunakan untuk mengelola akun aplikasi.
+
+Fitur utama:
+
+- Menambah user baru.
+- Menghapus user.
+- Mengatur role admin atau user.
+
+Catatan:
+
+- Menu ini hanya boleh digunakan oleh administrator.
+- Gunakan password yang kuat.
+- Jangan berbagi akun antar operator.
+
+### Email Settings
+
+Menu `Email Settings` digunakan untuk mengelola seluruh konfigurasi email dari satu tempat.
+
+Fitur utama:
+
+| Bagian | Fungsi |
+| --- | --- |
+| SMTP Server | Mengatur server SMTP pengirim email |
+| Manual Email | Mengirim email manual ke semua penerima |
+| Recipients | Mengelola alamat email penerima alarm |
+| Groups | Mengelompokkan penerima email |
+
+### Mengatur SMTP
+
+Isi data SMTP sesuai email pengirim yang digunakan.
+
+Contoh Gmail:
+
+| Field | Contoh |
+| --- | --- |
+| Host | `smtp.gmail.com` |
+| Port | `587` |
+| User | `nama-email@gmail.com` |
+| Password | App Password Gmail |
+| From Email | `nama-email@gmail.com` |
+
+Untuk Gmail, password yang digunakan biasanya bukan password login Gmail, tetapi App Password.
+
+### Menambahkan Penerima Email
+
+1. Buka `Email Settings`.
+2. Isi alamat email penerima.
+3. Pilih group jika diperlukan.
+4. Klik `Add Email`.
+
+Email yang sudah terdaftar akan menerima notifikasi ketika alarm baru terdeteksi.
+
+### Mengirim Email Manual
+
+1. Buka `Email Settings`.
+2. Isi subject dan message pada bagian `Manual Email`.
+3. Klik `Send to all`.
+
+Fitur ini berguna untuk memastikan konfigurasi SMTP dan daftar penerima sudah benar.
+
+### Logout
+
+Klik tombol `Log out` di sidebar untuk keluar dari aplikasi.
+
+## Panduan Programmer
+
+### Tech Stack
 
 | Komponen | Teknologi |
-|----------|-----------|
-| Framework | .NET 8 (ASP.NET Core Blazor) |
+| --- | --- |
+| Runtime | .NET 8 |
+| UI | ASP.NET Core Blazor Server |
 | Database | Microsoft SQL Server |
 | ORM | Entity Framework Core |
-| Email Service | MailKit & MimeKit |
-| Authentication | JWT (JSON Web Token) |
+| Email | MailKit dan MimeKit |
+| Authentication | Cookie Authentication dan JWT |
 | Password Hashing | BCrypt.Net |
-| Background Service | .NET BackgroundService |
+| Background Worker | `BackgroundService` |
 
----
+### Struktur Folder
 
-## 📁 Struktur Database
+```text
+EmailApp/
+├── Components/
+│   ├── Layout/              UI layout, sidebar, empty layout
+│   └── Pages/               Halaman Blazor
+├── Configuration/           Options class untuk appsettings
+├── Contracts/               Request DTO untuk API
+├── Controllers/             API controller
+├── Data/                    Entity Framework DbContext
+├── Extensions/              Registrasi dependency injection dan authentication
+├── Migrations/              Migration untuk database aplikasi
+├── Models/                  Entity database
+├── Services/                Business logic dan background service
+├── wwwroot/                 Static assets, CSS, JavaScript, logo
+├── appsettings.json         Konfigurasi aplikasi
+├── Program.cs               HTTP pipeline dan startup aplikasi
+└── EmailApp.csproj          Project file
+```
 
-### Database Alarm (alarmNotification)
+### File Penting
 
-| Tabel | Kolom Utama | Keterangan |
-|-------|-------------|------------|
-| AlarmMaster | AlarmId, TagName, GroupName, Priority | Master data alarm |
-| AlarmDetail | AlarmDetailId, AlarmId, AlarmState, EventStamp | Detail transisi alarm |
-| Cause | CauseId, CauseDescription | Penyebab alarm |
-| Comment | CommentId, Comment | Komentar alarm |
-| OperatorDetails | OperatorID, UserFullName | Data operator |
+| File | Fungsi |
+| --- | --- |
+| `Program.cs` | Middleware, authentication, authorization, route Blazor, controller API |
+| `Extensions/ServiceCollectionExtensions.cs` | Registrasi service, DbContext, auth, HTTP client |
+| `Data/AppDbContext.cs` | Database aplikasi `EmailDb` |
+| `Data/AlarmDbContext.cs` | Mapping database alarm `WWALMDB` |
+| `Services/AlarmMonitoringService.cs` | Background service pembaca alarm dan pengirim notifikasi |
+| `Services/EmailService.cs` | Pengiriman email SMTP dan format body email |
+| `Services/SmtpSettingsService.cs` | Pengelolaan konfigurasi SMTP dari database |
+| `Components/Pages/Emails.razor` | UI Email Settings |
+| `Components/Pages/Login.razor` | UI login |
+| `Controllers/AuthController.cs` | API login/logout |
+| `Controllers/AlarmController.cs` | API insert alarm manual |
 
-### Database Aplikasi (EmailDb)
+### Prasyarat Development
 
-| Tabel | Kolom Utama | Keterangan |
-|-------|-------------|------------|
-| Users | Id, Username, Password, IsAdmin | User aplikasi |
-| Emails | Id, Address | Daftar email penerima |
-| Groups | Id, Name, Description | Group user |
-| UserGroups | UserId, GroupId | Mapping user ke group |
-| AlarmEmailTracking | Id, AlarmDetailId, EmailSent, CreatedAt | Tracking pengiriman |
-
----
-
-## 📦 Instalasi
-
-### Prasyarat
+Pastikan tools berikut tersedia:
 
 - .NET 8 SDK
-- SQL Server (LocalDB / SQL Server)
-- SMTP Server (Gmail / SMTP Perusahaan)
+- SQL Server
+- `dotnet-ef`
+- SMTP account
 
-### Langkah Instalasi
+Cek versi .NET:
 
 ```bash
-# 1. Clone repository
-git clone [repository-url]
-cd EmailApp
+dotnet --version
+```
 
-# 2. Restore packages
+Install `dotnet-ef` jika belum tersedia:
+
+```bash
+dotnet tool install --global dotnet-ef
+```
+
+Jika memakai fish shell:
+
+```bash
+fish_add_path ~/.dotnet/tools
+```
+
+### Setup Project
+
+Restore dependency:
+
+```bash
 dotnet restore
+```
 
-# 3. Update connection string di appsettings.json
-# Sesuaikan dengan database Anda
+Build project:
 
-# 4. Buat migration dan update database
-dotnet ef migrations add InitialCreate
-dotnet ef database update
+```bash
+dotnet build
+```
 
-# 5. Buat tabel tracking
-# Jalankan script SQL di bawah
+Jalankan aplikasi:
 
-# 6. Jalankan aplikasi
+```bash
 dotnet run
 ```
 
-### Script SQL untuk Tabel Tracking
+Jika ingin menjalankan di port yang spesifik:
 
-```sql
-USE EmailDb;
-GO
-
-CREATE TABLE AlarmEmailTracking (
-    Id INT IDENTITY(1,1) PRIMARY KEY,
-    AlarmDetailId INT NOT NULL,
-    AlarmId INT NOT NULL,
-    EmailSent BIT DEFAULT 0,
-    EmailSentAt DATETIME NULL,
-    EmailRecipients NVARCHAR(MAX) NULL,
-    ErrorMessage NVARCHAR(500) NULL,
-    CreatedAt DATETIME DEFAULT GETDATE()
-);
+```bash
+dotnet run --urls http://localhost:5146
 ```
 
----
+### Konfigurasi
 
-## ⚙️ Konfigurasi
+Konfigurasi utama berada di `appsettings.json`.
 
-### appsettings.json
+Contoh aman untuk development:
 
 ```json
 {
+  "DetailedErrors": true,
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning",
+      "Microsoft.EntityFrameworkCore.Database.Command": "Warning",
+      "Microsoft.EntityFrameworkCore.Query": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
   "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=EmailDb;User Id=sa;Password=YourPassword;TrustServerCertificate=True",
-    "AlarmDatabase": "Server=localhost;Database=alarmNotification;User Id=sa;Password=YourPassword;TrustServerCertificate=True"
+    "DefaultConnection": "Server=localhost;Database=EmailDb;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True",
+    "AlarmDatabase": "Server=localhost;Database=WWALMDB;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True"
   },
   "Email": {
     "SmtpHost": "smtp.gmail.com",
     "SmtpPort": 587,
-    "SmtpUser": "your-email@gmail.com",
-    "SmtpPass": "your-app-password",
-    "FromEmail": "your-email@gmail.com"
+    "SmtpUser": "YOUR_EMAIL@gmail.com",
+    "SmtpPass": "YOUR_APP_PASSWORD",
+    "FromEmail": "YOUR_EMAIL@gmail.com"
   },
   "Jwt": {
-    "Key": "your-secret-key-minimum-32-characters",
+    "Key": "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY",
     "Issuer": "EmailApp",
     "Audience": "EmailAppUsers"
   },
+  "ApiBaseUrl": "http://localhost:5146",
   "Monitoring": {
     "CheckIntervalSeconds": 10,
-    "LookbackMinutes": 5
+    "LookbackMinutes": 5,
+    "AlarmStates": [
+      "UNACK_ALM",
+      "UNACK_RTN"
+    ]
   }
 }
 ```
 
-### User Awal
+Catatan security:
 
-```sql
--- Tambah user admin (password di-hash dengan BCrypt)
-INSERT INTO Users (Id, Username, Password, IsAdmin)
-VALUES (NEWID(), 'admin', '$2a$11$...', 1);
+- Jangan commit password database, SMTP password, atau JWT key production.
+- Untuk production, gunakan environment variable, secret manager, atau konfigurasi server.
+- Minimal panjang `Jwt:Key` harus cukup kuat untuk HMAC SHA256.
+
+Override konfigurasi dengan environment variable:
+
+```bash
+ConnectionStrings__DefaultConnection="Server=localhost;Database=EmailDb;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True"
+ConnectionStrings__AlarmDatabase="Server=localhost;Database=WWALMDB;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True"
+Email__SmtpPass="YOUR_APP_PASSWORD"
+Jwt__Key="YOUR_LONG_RANDOM_SECRET"
 ```
 
----
+### Database
 
-## 🖥️ Cara Penggunaan
+#### Database Aplikasi
 
-### 1. Login
+Database aplikasi menggunakan `AppDbContext` dan migration EF Core.
 
-- Buka `http://localhost:5146/login`
-- Masukkan username dan password
+Tabel utama:
 
-### 2. Dashboard (`/`)
+| Tabel | Fungsi |
+| --- | --- |
+| `Users` | Akun aplikasi |
+| `Emails` | Daftar penerima email |
+| `Groups` | Group user lama |
+| `UserGroups` | Relasi user dan group lama |
+| `EmailGroups` | Group penerima email |
+| `SetSmtp` | Konfigurasi SMTP aktif |
+| `AlarmEmailTracking` | Tracking alarm yang sudah diproses email |
 
-Menampilkan statistik alarm:
-- Total alarm
-- Jumlah UNACK
-- Priority 500
-- Jumlah group unik
-- Tabel alarm log
+Karena project memiliki lebih dari satu `DbContext`, selalu sebutkan context saat menjalankan EF command.
 
-### 3. User Management (`/users`)
+Update database aplikasi:
 
-- Tambah user baru
-- Delete user
-- Set role admin
+```bash
+dotnet ef database update --context AppDbContext
+```
 
-### 4. Email Settings (`/email-settings`)
+Membuat migration baru:
 
-- Konfigurasi SMTP
-- Tambah/edit/delete penerima email
-- Kelola group penerima
-- Kirim email manual ke seluruh penerima
+```bash
+dotnet ef migrations add NamaMigration --context AppDbContext
+```
 
----
+#### Database Alarm
 
-## 🔌 API Endpoints
+Database alarm menggunakan `AlarmDbContext`.
 
-| Method | Endpoint | Deskripsi |
-|--------|----------|-----------|
-| POST | `/api/auth/login` | Login user |
-| POST | `/api/auth/logout` | Logout user |
-| GET | `/api/alarm` | Get data alarm |
+Tabel yang dibaca:
 
-### Login Request
+| Tabel | Fungsi |
+| --- | --- |
+| `AlarmMaster` | Master alarm, tag, group, priority |
+| `AlarmDetail` | Event/transisi alarm |
+
+`AlarmDbContext` digunakan sebagai mapping ke database HMI/SCADA. Jangan membuat migration untuk database alarm kecuali memang database tersebut dimiliki oleh aplikasi ini.
+
+### Authentication
+
+Aplikasi menggunakan dua mekanisme:
+
+| Mekanisme | Fungsi |
+| --- | --- |
+| Cookie Authentication | Session browser untuk halaman Blazor |
+| JWT | Response API login dan kebutuhan API client |
+
+Login diproses oleh `POST /api/auth/login`.
+
+Setelah login berhasil:
+
+- Server membuat authentication cookie.
+- API juga mengembalikan JWT token.
+- Blazor menggunakan cookie untuk menjaga session saat reload halaman.
+
+### Background Monitoring
+
+Service utama: `Services/AlarmMonitoringService.cs`.
+
+Alur kerja:
+
+1. Service berjalan otomatis saat aplikasi start.
+2. Service membaca alarm dari `WWALMDB.dbo.AlarmDetail`.
+3. Alarm yang diproses mengikuti konfigurasi `Monitoring:AlarmStates`.
+4. Service hanya membaca alarm dalam rentang waktu terbaru berdasarkan `LookbackMinutes` dan `_lastCheckTime`.
+5. Service mengecek `AlarmEmailTracking` agar alarm tidak dikirim dua kali.
+6. Email dikirim ke semua address di tabel `Emails`.
+7. Hasil pengiriman dicatat ke `AlarmEmailTracking`.
+
+Konfigurasi interval:
+
+```json
+{
+  "Monitoring": {
+    "CheckIntervalSeconds": 10,
+    "LookbackMinutes": 5,
+    "AlarmStates": [
+      "UNACK_ALM",
+      "UNACK_RTN"
+    ]
+  }
+}
+```
+
+### Email Flow
+
+Service utama: `Services/EmailService.cs`.
+
+Sumber konfigurasi SMTP:
+
+1. Data `SetSmtp` dari database aplikasi.
+2. Jika data SMTP di database kosong, fallback ke section `Email` di `appsettings.json`.
+
+Format email:
+
+- Sistem mengirim HTML email agar tampilan lebih rapi.
+- Plain text fallback tetap tersedia untuk email client yang tidak mendukung HTML.
+- Body email di-encode sebelum masuk HTML untuk menghindari injection.
+
+### API Endpoint
+
+#### Login
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+```
+
+Request:
 
 ```json
 {
   "username": "admin",
-  "password": "password123"
+  "password": "admin123"
 }
 ```
 
-### Login Response
+Response sukses:
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "token": "JWT_TOKEN",
   "user": {
-    "id": "guid",
+    "id": "USER_ID",
     "username": "admin",
     "isAdmin": true
   }
 }
 ```
 
----
+#### Logout
 
-## 📊 Monitoring
-
-### Log Output
-
-```
-info: EmailApp.Services.AlarmMonitoringService[0]
-      Alarm Monitoring Service started
-info: EmailApp.Services.AlarmMonitoringService[0]
-      Found 1 new alarms
-info: EmailApp.Services.AlarmMonitoringService[0]
-      Email sent for alarm 85: CIP0_CIP_PUMP5807.FaultAlarm
+```http
+POST /api/auth/logout
 ```
 
-### Cek Tracking
+#### Insert Alarm Manual
+
+```http
+POST /api/alarm
+Content-Type: application/json
+```
+
+Request:
+
+```json
+{
+  "alarmId": 1,
+  "alarmState": "UNACK_ALM",
+  "eventStamp": "2026-05-25T10:30:00",
+  "priority": 500,
+  "operatorName": "Operator"
+}
+```
+
+Catatan:
+
+- `alarmId` harus ada di tabel `AlarmMaster`.
+- Jika penerima email tersedia, sistem akan mengirim email setelah alarm dibuat.
+
+### Routing Halaman
+
+| Route | Akses | Fungsi |
+| --- | --- | --- |
+| `/login` | Public | Login |
+| `/` | Authenticated | Home/dashboard |
+| `/users` | Admin | User management |
+| `/email-settings` | Admin | SMTP, recipients, groups, manual email |
+| `/emails` | Admin | Alias halaman Email Settings |
+| `/set-smtp` | Admin | Redirect ke Email Settings |
+| `/send-email` | Admin | Redirect ke Email Settings |
+
+### Cara Verifikasi Setelah Setup
+
+1. Build aplikasi.
+
+```bash
+dotnet build
+```
+
+2. Jalankan migration aplikasi.
+
+```bash
+dotnet ef database update --context AppDbContext
+```
+
+3. Pastikan database aplikasi berisi tabel berikut.
 
 ```sql
-SELECT * FROM AlarmEmailTracking ORDER BY Id DESC;
+USE EmailDb;
+
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE'
+ORDER BY TABLE_SCHEMA, TABLE_NAME;
 ```
 
-### Cek Alarm Terbaru
+Minimal tabel aplikasi:
+
+- `__EFMigrationsHistory`
+- `Users`
+- `Emails`
+- `EmailGroups`
+- `SetSmtp`
+- `AlarmEmailTracking`
+
+4. Pastikan database alarm berisi tabel Wonderware.
 
 ```sql
-SELECT TOP 10 
-    ad.EventStamp, 
-    ad.AlarmState, 
-    am.TagName,
-    am.Priority
-FROM AlarmDetail ad
-INNER JOIN AlarmMaster am ON ad.AlarmId = am.AlarmId
-ORDER BY ad.EventStamp DESC;
+USE WWALMDB;
+
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE'
+ORDER BY TABLE_SCHEMA, TABLE_NAME;
 ```
 
----
+Tabel penting:
 
-## 🔧 Troubleshooting
+- `AlarmMaster`
+- `AlarmDetail`
 
-### Email Tidak Terkirim
+5. Jalankan aplikasi dan login.
 
-| Masalah | Solusi |
-|---------|--------|
-| SMTP configuration error | Cek `appsettings.json` section Email |
-| Gmail password salah | Gunakan App Password, bukan password biasa |
-| Koneksi internet | Pastikan koneksi internet stabil |
+```bash
+dotnet run --urls http://localhost:5146
+```
 
-### Alarm Tidak Terdeteksi
+6. Buka:
 
-| Masalah | Solusi |
-|---------|--------|
-| Status alarm bukan UNACK_ALM | Alarm harus dengan status UNACK_ALM |
-| EventStamp terlalu lama | Service hanya mengambil alarm baru |
-| Alarm sudah dikirim | Cek tabel AlarmEmailTracking |
+```text
+http://localhost:5146/login
+```
 
-### Database Connection Error
+7. Atur SMTP dan tambah minimal satu recipient di `Email Settings`.
 
-| Masalah | Solusi |
-|---------|--------|
-| SQL Server tidak jalan | Jalankan SQL Server service |
-| Connection string salah | Cek koneksi di appsettings.json |
-| Firewall block | Buka port 1433 |
-
----
-
-## 🚢 Deployment
+8. Kirim manual email untuk test.
 
 ### Windows Service
 
+Aplikasi sudah disiapkan untuk berjalan sebagai Windows Service dengan nama:
+
+```text
+CIP Station Alarm Notification
+```
+
+Publish aplikasi untuk Windows:
+
+```powershell
+.\scripts\windows\publish-service.ps1
+```
+
+Hasil publish utama untuk deployment user:
+
+```text
+publish\setup.exe
+publish\uninstall.exe
+publish\EmailApp.exe
+```
+
+Install permanen sebagai Windows Service:
+
+1. Copy folder `publish` ke komputer target.
+2. Jalankan `setup.exe` sebagai administrator.
+3. Installer akan copy aplikasi ke `C:\Program Files\EmailApp`, register service auto-start, menjalankan service, dan membuat entry uninstall Windows.
+
+Hapus aplikasi:
+
+```text
+C:\Program Files\EmailApp\uninstall.exe
+```
+
+Atau buka Windows `Apps & Features` lalu uninstall `CIP Station Alarm Notification`.
+
+Catatan:
+
+- Jangan menjalankan `EmailApp.exe` langsung untuk mode permanen. Double-click `EmailApp.exe` hanya menjalankan proses biasa, sehingga aplikasi berhenti ketika proses ditutup.
+- Untuk upgrade, jalankan `setup.exe` baru. Jika `appsettings.json` sudah ada di folder install, installer mempertahankan file lama dan menyimpan konfigurasi baru sebagai `appsettings.new-YYYYMMDDHHMMSS.json`.
+
+Install dan jalankan service dari PowerShell sebagai administrator:
+
+```powershell
+.\scripts\windows\install-service.ps1
+```
+
+Hapus service:
+
+```powershell
+.\scripts\windows\uninstall-service.ps1
+```
+
+Jika ingin menjalankan manual tanpa script:
+
 ```bash
-# Publish
-dotnet publish -c Release -o ./publish
-
-# Install service
-sc create AlarmEmailService binPath="C:\path\to\publish\EmailApp.exe"
-sc start AlarmEmailService
+dotnet publish -c Release -r win-x64 --self-contained false -o publish
 ```
 
-### Linux Daemon (systemd)
-
-Buat file `/etc/systemd/system/alarm-email.service`:
-
-```ini
-[Unit]
-Description=Alarm Email Service
-After=network.target
-
-[Service]
-WorkingDirectory=/opt/alarm-email
-ExecStart=/usr/bin/dotnet /opt/alarm-email/EmailApp.dll
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
+```powershell
+sc.exe create "CIP Station Alarm Notification" binPath= "C:\Path\To\EmailApp\publish\EmailApp.exe" start= auto
 ```
+
+Jalankan service:
+
+```powershell
+sc.exe start "CIP Station Alarm Notification"
+```
+
+Stop service:
+
+```powershell
+sc.exe stop "CIP Station Alarm Notification"
+```
+
+Hapus service:
+
+```powershell
+sc.exe delete "CIP Station Alarm Notification"
+```
+
+Catatan deployment:
+
+- Pastikan server Windows punya akses jaringan ke SQL Server `EmailDb` dan `WWALMDB`.
+- Pastikan service account punya permission baca file konfigurasi dan akses jaringan yang diperlukan.
+- Simpan `appsettings.json` production di folder publish atau gunakan environment variable.
+- Test manual email dan alarm notification sebelum service dipakai production.
+
+### Troubleshooting
+
+#### `dotnet ef` tidak ditemukan
+
+Install tool:
 
 ```bash
-sudo systemctl enable alarm-email
-sudo systemctl start alarm-email
-sudo systemctl status alarm-email
+dotnet tool install --global dotnet-ef
 ```
 
----
+Untuk fish shell:
 
-## 📝 Format Email
-
-```
-Subject: [ALARM] {TagName} - Priority {Priority}
-
-Body:
-ALARM NOTIFICATION
-==================
-Tag: {TagName}
-Group: {GroupName}
-Priority: {Priority}
-Time: {EventStamp}
-State: {AlarmState}
-
-Please check immediately.
+```bash
+fish_add_path ~/.dotnet/tools
 ```
 
----
+#### `More than one DbContext was found`
+
+Gunakan parameter `--context`.
+
+```bash
+dotnet ef database update --context AppDbContext
+```
+
+#### Login gagal dengan `Invalid salt version`
+
+Artinya password di database bukan hash BCrypt yang valid. Buat ulang password user memakai BCrypt hash, atau reset user dari aplikasi jika masih ada akun admin lain.
+
+#### Browser menampilkan HTTP 401 bukan halaman login
+
+Pastikan middleware authentication dan status code redirect aktif di `Program.cs`, lalu restart aplikasi. Untuk halaman browser, request unauthorized harus diarahkan ke `/login?returnUrl=...`.
+
+#### Email tidak terkirim
+
+Cek hal berikut:
+
+- SMTP host dan port benar.
+- Password SMTP benar.
+- Untuk Gmail, gunakan App Password.
+- Penerima email sudah terdaftar.
+- Server bisa mengakses SMTP provider.
+- Log aplikasi tidak menampilkan error authentication SMTP.
+
+#### Alarm tidak mengirim email
+
+Cek hal berikut:
+
+- Database alarm menggunakan connection string `AlarmDatabase`.
+- Tabel `AlarmDetail` memiliki data baru dengan `AlarmState` yang masuk di `Monitoring:AlarmStates`, misalnya `UNACK_ALM` atau `UNACK_RTN`.
+- `EventStamp` masuk dalam rentang monitoring.
+- Data belum ada di `AlarmEmailTracking`.
+- Minimal satu recipient tersedia di tabel `Emails`.
+
+#### Query EF muncul terus di console
+
+Monitoring memang berjalan periodik sesuai `Monitoring:CheckIntervalSeconds`. Jika log terlalu ramai, atur level logging EF menjadi `Warning` di `appsettings.json`.
+
+#### Warning vulnerability MailKit saat build
+
+Jika muncul warning `NU1902` untuk MailKit, cek versi terbaru package dan update jika sudah aman untuk project.
+
+```bash
+dotnet list package --vulnerable
+dotnet add package MailKit
+dotnet add package MimeKit
+```
+
+### Catatan Maintenance
+
+- Jangan mengubah schema database `WWALMDB` tanpa koordinasi dengan pemilik sistem HMI/SCADA.
+- Gunakan migration hanya untuk `AppDbContext`.
+- Simpan secret production di luar repository.
+- Setelah mengubah model aplikasi, buat migration baru dan review hasil migration sebelum deploy.
+- Setelah mengubah authentication atau email flow, test login, reload halaman, logout, SMTP save, manual email, dan alarm notification.

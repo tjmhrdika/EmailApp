@@ -48,7 +48,7 @@ namespace EmailApp.Controllers
             if (emails.Any())
             {
                 var subject = $"Alarm Triggered: {master.TagName}";
-                var body = $"Alarm {master.TagName} {alarm.AlarmState} at {alarm.EventStamp:yyyy-MM-dd HH:mm:ss}";
+                var body = CreateAlarmEmailBody(alarm, master);
                 
                 await _emailService.SendBulkEmailAsync(emails, subject, body);
             }
@@ -68,7 +68,7 @@ namespace EmailApp.Controllers
             {
                 AlarmId = request.AlarmId,
                 AlarmState = request.AlarmState,
-                EventStamp = request.EventStamp ?? DateTime.UtcNow,
+                EventStamp = request.EventStamp ?? DateTime.Now,
                 Priority = request.Priority,
                 CommentId = request.CommentId,
                 OperatorID = request.OperatorID,
@@ -83,6 +83,21 @@ namespace EmailApp.Controllers
             };
         }
 
+        private static string CreateAlarmEmailBody(AlarmDetail alarm, AlarmMaster master)
+        {
+            return string.Join(Environment.NewLine, new[]
+            {
+                "Alarm Notification",
+                $"Tag: {master.TagName}",
+                $"Group: {master.GroupName}",
+                $"Priority: {master.Priority}",
+                $"State: {alarm.AlarmState}",
+                $"Event Time: {alarm.EventStamp:yyyy-MM-dd HH:mm:ss}",
+                $"Alarm Detail ID: {alarm.AlarmDetailId}",
+                "Action: Please check immediately."
+            });
+        }
+
         private async Task TrackAlarmEmail(AlarmDetail alarm, IReadOnlyCollection<string> emails)
         {
             var tracking = new AlarmEmailTracking
@@ -90,10 +105,10 @@ namespace EmailApp.Controllers
                 AlarmDetailId = alarm.AlarmDetailId,
                 AlarmId = alarm.AlarmId,
                 EmailSent = emails.Any(),
-                EmailSentAt = emails.Any() ? DateTime.UtcNow : null,
+                EmailSentAt = emails.Any() ? DateTime.Now : null,
                 EmailRecipients = emails.Any() ? string.Join(",", emails) : null,
                 ErrorMessage = emails.Any() ? null : "No email recipients configured",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.Now
             };
 
             _appDb.AlarmEmailTracking.Add(tracking);
