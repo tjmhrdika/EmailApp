@@ -530,6 +530,33 @@ Publish aplikasi untuk Windows:
 .\scripts\windows\publish-service.ps1
 ```
 
+Hasil publish utama untuk deployment user:
+
+```text
+publish\setup.exe
+publish\uninstall.exe
+publish\EmailApp.exe
+```
+
+Install permanen sebagai Windows Service:
+
+1. Copy folder `publish` ke komputer target.
+2. Jalankan `setup.exe` sebagai administrator.
+3. Installer akan copy aplikasi ke `C:\Program Files\EmailApp`, register service auto-start, menjalankan service, dan membuat entry uninstall Windows.
+
+Hapus aplikasi:
+
+```text
+C:\Program Files\EmailApp\uninstall.exe
+```
+
+Atau buka Windows `Apps & Features` lalu uninstall `CIP Station Alarm Notification`.
+
+Catatan:
+
+- Jangan menjalankan `EmailApp.exe` langsung untuk mode permanen. Double-click `EmailApp.exe` hanya menjalankan proses biasa, sehingga aplikasi berhenti ketika proses ditutup.
+- Untuk upgrade, jalankan `setup.exe` baru. Jika `appsettings.json` sudah ada di folder install, installer mempertahankan file lama dan menyimpan konfigurasi baru sebagai `appsettings.new-YYYYMMDDHHMMSS.json`.
+
 Install dan jalankan service dari PowerShell sebagai administrator:
 
 ```powershell
