@@ -1,76 +1,37 @@
-using EmailApp.Components;
-using EmailApp.Extensions;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Hosting.WindowsServices;
-using System.Diagnostics;
+using EmailApp.Desktop;
+using EmailApp.Forms;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using System.Windows.Forms;
 
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Host.UseWindowsService(options =>
+namespace EmailApp
 {
-    options.ServiceName = "CIP Station Alarm Notification";
-});
-
-if (string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
-{
-    builder.WebHost.UseUrls("http://0.0.0.0:5146");
-}
-
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys")))
-    .SetApplicationName("EmailApp");
-
-builder.Services.AddApplicationServices(builder.Configuration);
-
-var app = builder.Build();
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
-}
-
-app.UseStaticFiles();
-app.UseAntiforgery();
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseStatusCodePages(context =>
-{
-    var httpContext = context.HttpContext;
-    var requestPath = httpContext.Request.Path;
-
-    if (httpContext.Response.StatusCode == StatusCodes.Status401Unauthorized &&
-        !requestPath.StartsWithSegments("/api") &&
-        !requestPath.StartsWithSegments("/login") &&
-        !httpContext.Response.HasStarted)
+    internal static class Program
     {
-        var returnUrl = Uri.EscapeDataString($"{httpContext.Request.PathBase}{httpContext.Request.Path}{httpContext.Request.QueryString}");
-        httpContext.Response.Redirect($"/login?returnUrl={returnUrl}");
+        [STAThread]
+        private static void Main()
+        {
+            ApplicationConfiguration.Initialize();
+
+            using var host = Host.CreateDefaultBuilder()
+                .ConfigureAppConfiguration(configuration =>
+                {
+                    configuration.SetBasePath(AppContext.BaseDirectory);
+                    configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+                })
+                .ConfigureServices((context, services) =>
+                {
+                    services.AddDesktopApplicationServices(context.Configuration);
+                    services.AddTransient<LoginForm>();
+                    services.AddTransient<DashboardForm>();
+                })
+                .Build();
+
+            host.Start();
+
+            Application.ApplicationExit += (_, _) => host.StopAsync().GetAwaiter().GetResult();
+            Application.Run(host.Services.GetRequiredService<LoginForm>());
+        }
     }
-
-    return Task.CompletedTask;
-});
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-app.MapControllers();
-
-if (!WindowsServiceHelpers.IsWindowsService())
-{
-    app.Lifetime.ApplicationStarted.Register(() =>
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "http://localhost:5146",
-                UseShellExecute = true
-            });
-        }
-        catch
-        {
-            // The server is still usable even if Windows cannot open a browser.
-        }
-    });
 }
-
-app.Run();

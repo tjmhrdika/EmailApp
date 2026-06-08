@@ -1,7 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
@@ -9,33 +12,25 @@
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.1.0" />
     <PackageReference Include="MailKit" Version="4.15.1" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.5" />
     <PackageReference Include="MimeKit" Version="4.15.1" />
-    <PackageReference Include="System.Threading.AccessControl" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Remove="dist\**" />
     <Content Remove="publish\**" />
-    <Compile Remove="tools\**" />
     <None Remove="dist\**" />
     <None Remove="publish\**" />
-    <None Remove="tools\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="scripts\windows\install-service.ps1" CopyToPublishDirectory="Always" TargetPath="install-service.ps1" />
-    <Content Include="scripts\windows\uninstall-service.ps1" CopyToPublishDirectory="Always" TargetPath="uninstall-service.ps1" />
-    <Content Include="scripts\windows\install-service.bat" CopyToPublishDirectory="Always" TargetPath="install-service.bat" />
-    <Content Include="scripts\windows\uninstall-service.bat" CopyToPublishDirectory="Always" TargetPath="uninstall-service.bat" />
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
