@@ -14,11 +14,16 @@ namespace EmailApp.Desktop
             this IServiceCollection services,
             IConfiguration configuration)
         {
+            var defaultConnection = configuration.GetConnectionString("DefaultConnection")
+                ?? "Server=localhost;Database=EmailDB;Trusted_Connection=True;TrustServerCertificate=True";
+            var alarmConnection = configuration.GetConnectionString("AlarmDatabase")
+                ?? "Server=localhost;Database=WWALMDB;Trusted_Connection=True;TrustServerCertificate=True";
+
             services.AddDbContextFactory<AppDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlServer(defaultConnection));
 
             services.AddDbContextFactory<AlarmDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("AlarmDatabase")));
+                options.UseSqlServer(alarmConnection));
 
             services.Configure<EmailOptions>(configuration.GetSection("Email"));
             services.Configure<MonitoringOptions>(configuration.GetSection("Monitoring"));

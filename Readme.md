@@ -4,7 +4,7 @@ Aplikasi desktop WinForms untuk memonitor alarm dari database HMI/SCADA AVEVA Wo
 
 ## Ringkasan
 
-EmailApp sekarang berjalan sebagai aplikasi desktop Windows, bukan web app/Blazor. UI dibuat dengan `Form` dan `UserControl` seperti pola project FingerPrint.
+EmailApp sekarang disiapkan sebagai WinForms control library, bukan web app/Blazor. Output yang dituju adalah DLL berisi `UserControl`, mengikuti pola project FingerPrint.
 
 Database yang dipakai:
 
@@ -25,6 +25,7 @@ Alur utama:
 
 | Area | Fungsi |
 | --- | --- |
+| EmailAppControl | Control utama untuk dipasang di HMI/designer, berisi tab recipient, SMTP, dan manual email |
 | Login | Validasi user dari database aplikasi |
 | Recipients | Tambah/hapus penerima email dan group |
 | SMTP | Mengatur host, port, user, password, dan from email |
@@ -44,7 +45,6 @@ EmailApp/
 ├── Models/                  Entity database
 ├── Services/                Business logic, email service, alarm monitor
 ├── appsettings.json         Konfigurasi aplikasi
-├── Program.cs               Entry point WinForms dan hosted service startup
 └── EmailApp.csproj          Project desktop WinForms
 ```
 
@@ -54,7 +54,7 @@ Folder web lama seperti `Components`, `Controllers`, `Contracts`, `Extensions`, 
 
 | File | Fungsi |
 | --- | --- |
-| `Program.cs` | Menjalankan WinForms app dan background hosted services |
+| `Controls/EmailAppControl.cs` | UserControl utama yang paling aman dipilih dari HMI/designer |
 | `Forms/LoginForm.cs` | Window login |
 | `Forms/DashboardForm.cs` | Window utama dengan tab recipient, SMTP, manual email |
 | `Controls/LoginControl.cs` | UserControl login |
@@ -78,6 +78,7 @@ Folder web lama seperti `Components`, `Controllers`, `Contracts`, `Extensions`, 
 Project menggunakan target:
 
 ```xml
+<OutputType>Library</OutputType>
 <TargetFramework>net8.0-windows</TargetFramework>
 <UseWindowsForms>true</UseWindowsForms>
 ```
@@ -98,16 +99,17 @@ Build di Windows:
 dotnet build
 ```
 
-Jalankan aplikasi di Windows:
+Output debug yang diharapkan:
 
-```bash
-dotnet run
+```text
+bin\Debug\net8.0-windows\EmailApp.dll
+bin\Debug\net8.0-windows\appsettings.json
 ```
 
-Publish contoh:
+Control utama untuk dicoba di HMI/designer:
 
-```bash
-dotnet publish -c Release -r win-x64 --self-contained false -o publish
+```text
+EmailApp.Controls.EmailAppControl
 ```
 
 ## Konfigurasi
@@ -167,4 +169,10 @@ Ini normal untuk project WinForms. Lakukan build di Windows/Visual Studio.
 
 ## Catatan AVEVA/HMI
 
-Aplikasi ini bukan object ArchestrA yang di-import langsung ke HMI. Aplikasi ini adalah desktop companion/utility yang membaca database alarm AVEVA dan mengirim email berdasarkan data tersebut.
+Aplikasi ini sekarang dibuat mendekati output FingerPrint: sebuah WinForms DLL yang berisi `UserControl`.
+
+Catatan penting:
+
+- Project FingerPrint memakai `.NET Framework 4.8` dan menghasilkan `FingerPrint11.dll`.
+- Project EmailApp saat ini memakai `.NET 8 Windows` dan menghasilkan `EmailApp.dll`.
+- Jika HMI/AVEVA hanya bisa load `.NET Framework` control, maka `EmailApp.dll` net8.0-windows tetap tidak akan muncul. Dalam kasus itu perlu dibuat wrapper/control khusus `.NET Framework 4.8`.

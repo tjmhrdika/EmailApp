@@ -1,3 +1,4 @@
+using EmailApp.Desktop;
 using EmailApp.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System.Drawing;
@@ -12,6 +13,11 @@ namespace EmailApp.Controls
         private readonly TextBox _txtBody = new();
         private readonly Label _lblStatus = new();
         private readonly Button _btnSend = new();
+
+        public ManualEmailControl()
+            : this(DesktopServiceProviderFactory.Services)
+        {
+        }
 
         public ManualEmailControl(IServiceProvider serviceProvider)
         {

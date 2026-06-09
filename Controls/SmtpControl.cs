@@ -1,3 +1,4 @@
+using EmailApp.Desktop;
 using EmailApp.Models;
 using EmailApp.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,11 @@ namespace EmailApp.Controls
         private readonly TextBox _txtFromEmail = new();
         private readonly Label _lblStatus = new();
         private SetSmtp _settings = new();
+
+        public SmtpControl()
+            : this(DesktopServiceProviderFactory.Services)
+        {
+        }
 
         public SmtpControl(IServiceProvider serviceProvider)
         {

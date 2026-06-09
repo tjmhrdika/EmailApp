@@ -1,4 +1,5 @@
 using EmailApp.Data;
+using EmailApp.Desktop;
 using EmailApp.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,11 @@ namespace EmailApp.Controls
         private readonly Label _lblMessage = new();
         private readonly Button _btnLogin = new();
         private bool _showPassword;
+
+        public LoginControl()
+            : this(DesktopServiceProviderFactory.Services)
+        {
+        }
 
         public LoginControl(IServiceProvider serviceProvider)
         {

@@ -1,3 +1,4 @@
+using EmailApp.Desktop;
 using EmailApp.Models;
 using EmailApp.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,11 @@ namespace EmailApp.Controls
         private readonly Label _lblStatus = new();
         private List<EmailGroup> _groups = new();
         private List<Email> _emails = new();
+
+        public RecipientControl()
+            : this(DesktopServiceProviderFactory.Services)
+        {
+        }
 
         public RecipientControl(IServiceProvider serviceProvider)
         {
