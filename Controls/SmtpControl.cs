@@ -1,7 +1,5 @@
-using EmailApp.Desktop;
-using EmailApp.Models;
-using EmailApp.Services;
-using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -9,129 +7,157 @@ namespace EmailApp.Controls
 {
     public class SmtpControl : UserControl
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly TextBox _txtHost = new();
-        private readonly NumericUpDown _numPort = new();
-        private readonly TextBox _txtUser = new();
-        private readonly TextBox _txtPassword = new();
-        private readonly TextBox _txtFromEmail = new();
-        private readonly Label _lblStatus = new();
-        private SetSmtp _settings = new();
+        private readonly TextBox txtConnectionString;
+        private readonly TextBox txtHost;
+        private readonly NumericUpDown numPort;
+        private readonly TextBox txtUser;
+        private readonly TextBox txtPassword;
+        private readonly TextBox txtFromEmail;
+        private readonly Label lblStatus;
+        private static readonly Guid SettingsId = new Guid("11111111-1111-1111-1111-111111111111");
 
         public SmtpControl()
-            : this(DesktopServiceProviderFactory.Services)
         {
+            txtConnectionString = new TextBox();
+            txtHost = new TextBox();
+            numPort = new NumericUpDown();
+            txtUser = new TextBox();
+            txtPassword = new TextBox();
+            txtFromEmail = new TextBox();
+            lblStatus = new Label();
+
+            ConnectionString = "Server=localhost;Database=EmailDB;Trusted_Connection=True;TrustServerCertificate=True";
+            SmtpHost = "smtp.gmail.com";
+            InitializeComponent();
+            SmtpPort = 587;
         }
 
-        public SmtpControl(IServiceProvider serviceProvider)
+        public string ConnectionString
         {
-            _serviceProvider = serviceProvider;
-            InitializeComponent();
-            _ = LoadSettingsAsync();
+            get { return txtConnectionString.Text; }
+            set { txtConnectionString.Text = value ?? string.Empty; }
+        }
+
+        public string SmtpHost
+        {
+            get { return txtHost.Text; }
+            set { txtHost.Text = value ?? string.Empty; }
+        }
+
+        public int SmtpPort
+        {
+            get { return (int)numPort.Value; }
+            set { numPort.Value = Math.Max(numPort.Minimum, Math.Min(numPort.Maximum, value)); }
+        }
+
+        public string SmtpUser
+        {
+            get { return txtUser.Text; }
+            set { txtUser.Text = value ?? string.Empty; }
+        }
+
+        public string SmtpPassword
+        {
+            get { return txtPassword.Text; }
+            set { txtPassword.Text = value ?? string.Empty; }
+        }
+
+        public string FromEmail
+        {
+            get { return txtFromEmail.Text; }
+            set { txtFromEmail.Text = value ?? string.Empty; }
         }
 
         private void InitializeComponent()
         {
             BackColor = Color.FromArgb(248, 250, 252);
-            Padding = new Padding(24);
+            Padding = new Padding(16);
 
             var title = new Label
             {
                 Text = "SMTP Server",
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(13, 27, 42),
-                Location = new Point(24, 24),
-                Size = new Size(300, 32)
+                Location = new Point(16, 14),
+                Size = new Size(300, 30)
             };
 
-            var subtitle = new Label
-            {
-                Text = "Konfigurasi server pengirim email alarm",
-                Font = new Font("Segoe UI", 9),
-                ForeColor = Color.FromArgb(107, 122, 141),
-                Location = new Point(24, 58),
-                Size = new Size(420, 22)
-            };
+            numPort.Maximum = 65535;
+            numPort.Minimum = 0;
+            txtPassword.UseSystemPasswordChar = true;
 
-            var form = new TableLayoutPanel
+            var table = new TableLayoutPanel
             {
-                Location = new Point(24, 105),
-                Size = new Size(620, 260),
+                Location = new Point(16, 58),
+                Size = new Size(700, 245),
                 ColumnCount = 2,
-                RowCount = 5,
+                RowCount = 6,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            form.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
-            form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-            AddRow(form, 0, "Host", _txtHost);
-            AddRow(form, 1, "Port", _numPort);
-            AddRow(form, 2, "User", _txtUser);
-            AddRow(form, 3, "Password", _txtPassword);
-            AddRow(form, 4, "From Email", _txtFromEmail);
+            AddRow(table, 0, "Connection String", txtConnectionString);
+            AddRow(table, 1, "Host", txtHost);
+            AddRow(table, 2, "Port", numPort);
+            AddRow(table, 3, "User", txtUser);
+            AddRow(table, 4, "Password", txtPassword);
+            AddRow(table, 5, "From Email", txtFromEmail);
 
-            _numPort.Maximum = 65535;
-            _numPort.Minimum = 0;
-            _txtPassword.UseSystemPasswordChar = true;
+            var loadButton = CreateButton("Load", 16, 325);
+            loadButton.Click += delegate { LoadSettings(); };
 
-            var saveButton = new Button
-            {
-                Text = "Save",
-                BackColor = Color.FromArgb(26, 115, 232),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 10, FontStyle.Bold),
-                Location = new Point(24, 390),
-                Size = new Size(110, 38)
-            };
-            saveButton.Click += async (_, _) => await SaveSettingsAsync();
+            var saveButton = CreateButton("Save", 126, 325);
+            saveButton.BackColor = Color.FromArgb(26, 115, 232);
+            saveButton.ForeColor = Color.White;
+            saveButton.Click += delegate { SaveSettings(); };
 
-            var reloadButton = new Button
-            {
-                Text = "Reload",
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(144, 390),
-                Size = new Size(110, 38)
-            };
-            reloadButton.Click += async (_, _) => await LoadSettingsAsync();
+            lblStatus.Location = new Point(16, 372);
+            lblStatus.Size = new Size(700, 30);
+            lblStatus.Font = new Font("Segoe UI", 9F);
 
-            _lblStatus.Location = new Point(24, 445);
-            _lblStatus.Size = new Size(620, 28);
-            _lblStatus.Font = new Font("Segoe UI", 9);
-
-            Controls.AddRange([title, subtitle, form, saveButton, reloadButton, _lblStatus]);
+            Controls.AddRange(new Control[] { title, table, loadButton, saveButton, lblStatus });
         }
 
-        private static void AddRow(TableLayoutPanel form, int row, string labelText, Control input)
+        private static void AddRow(TableLayoutPanel table, int row, string labelText, Control input)
         {
             var label = new Label
             {
                 Text = labelText,
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleLeft,
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
             };
 
             input.Dock = DockStyle.Fill;
-            input.Margin = new Padding(0, 4, 0, 8);
-            form.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-            form.Controls.Add(label, 0, row);
-            form.Controls.Add(input, 1, row);
+            input.Margin = new Padding(0, 3, 0, 7);
+            table.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+            table.Controls.Add(label, 0, row);
+            table.Controls.Add(input, 1, row);
         }
 
-        private async Task LoadSettingsAsync()
+        private void LoadSettings()
         {
             try
             {
-                using var scope = _serviceProvider.CreateScope();
-                var service = scope.ServiceProvider.GetRequiredService<ISmtpSettingsService>();
-                _settings = await service.GetSettingsAsync();
+                using (var connection = new SqlConnection(ConnectionString))
+                using (var command = new SqlCommand("SELECT TOP 1 Host, Port, [User], Pass, FromEmail FROM SetSmtp WHERE Id=@Id", connection))
+                {
+                    command.Parameters.AddWithValue("@Id", SettingsId);
+                    connection.Open();
+                    using (var reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            SmtpHost = Convert.ToString(reader["Host"]);
+                            SmtpPort = Convert.ToInt32(reader["Port"]);
+                            SmtpUser = Convert.ToString(reader["User"]);
+                            SmtpPassword = Convert.ToString(reader["Pass"]);
+                            FromEmail = Convert.ToString(reader["FromEmail"]);
+                        }
+                    }
+                }
 
-                _txtHost.Text = _settings.Host;
-                _numPort.Value = Math.Min(_numPort.Maximum, Math.Max(_numPort.Minimum, _settings.Port));
-                _txtUser.Text = _settings.User;
-                _txtPassword.Text = _settings.Pass;
-                _txtFromEmail.Text = _settings.FromEmail;
                 SetStatus("SMTP settings loaded", true);
             }
             catch (Exception ex)
@@ -140,19 +166,27 @@ namespace EmailApp.Controls
             }
         }
 
-        private async Task SaveSettingsAsync()
+        private void SaveSettings()
         {
             try
             {
-                _settings.Host = _txtHost.Text.Trim();
-                _settings.Port = (int)_numPort.Value;
-                _settings.User = _txtUser.Text.Trim();
-                _settings.Pass = _txtPassword.Text;
-                _settings.FromEmail = _txtFromEmail.Text.Trim();
+                using (var connection = new SqlConnection(ConnectionString))
+                using (var command = new SqlCommand(
+                    "IF EXISTS (SELECT 1 FROM SetSmtp WHERE Id=@Id) " +
+                    "UPDATE SetSmtp SET Host=@Host, Port=@Port, [User]=@User, Pass=@Pass, FromEmail=@FromEmail WHERE Id=@Id " +
+                    "ELSE INSERT INTO SetSmtp (Id, Host, Port, [User], Pass, FromEmail) VALUES (@Id, @Host, @Port, @User, @Pass, @FromEmail)",
+                    connection))
+                {
+                    command.Parameters.AddWithValue("@Id", SettingsId);
+                    command.Parameters.AddWithValue("@Host", SmtpHost);
+                    command.Parameters.AddWithValue("@Port", SmtpPort);
+                    command.Parameters.AddWithValue("@User", SmtpUser);
+                    command.Parameters.AddWithValue("@Pass", SmtpPassword);
+                    command.Parameters.AddWithValue("@FromEmail", FromEmail);
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
 
-                using var scope = _serviceProvider.CreateScope();
-                var service = scope.ServiceProvider.GetRequiredService<ISmtpSettingsService>();
-                await service.SaveSettingsAsync(_settings);
                 SetStatus("SMTP settings saved", true);
             }
             catch (Exception ex)
@@ -161,10 +195,21 @@ namespace EmailApp.Controls
             }
         }
 
+        private static Button CreateButton(string text, int x, int y)
+        {
+            return new Button
+            {
+                Text = text,
+                Location = new Point(x, y),
+                Size = new Size(100, 32),
+                FlatStyle = FlatStyle.Flat
+            };
+        }
+
         private void SetStatus(string message, bool success)
         {
-            _lblStatus.Text = message;
-            _lblStatus.ForeColor = success ? Color.FromArgb(21, 128, 61) : Color.FromArgb(229, 57, 53);
+            lblStatus.Text = message;
+            lblStatus.ForeColor = success ? Color.FromArgb(21, 128, 61) : Color.FromArgb(229, 57, 53);
         }
     }
 }

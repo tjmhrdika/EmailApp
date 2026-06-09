@@ -1,8 +1,4 @@
-using EmailApp.Data;
-using EmailApp.Desktop;
-using EmailApp.Models;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -10,36 +6,31 @@ namespace EmailApp.Controls
 {
     public class LoginControl : UserControl
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly TextBox _txtUsername = new();
-        private readonly TextBox _txtPassword = new();
-        private readonly Label _lblMessage = new();
-        private readonly Button _btnLogin = new();
-        private bool _showPassword;
+        private readonly TextBox txtUsername;
+        private readonly TextBox txtPassword;
+        private readonly Label lblMessage;
+        private bool showPassword;
 
         public LoginControl()
-            : this(DesktopServiceProviderFactory.Services)
         {
-        }
-
-        public LoginControl(IServiceProvider serviceProvider)
-        {
-            _serviceProvider = serviceProvider;
+            txtUsername = new TextBox();
+            txtPassword = new TextBox();
+            lblMessage = new Label();
             InitializeComponent();
         }
 
-        public event EventHandler? LoginSucceeded;
+        public event EventHandler LoginSucceeded;
 
         public string Username
         {
-            get => _txtUsername.Text;
-            set => _txtUsername.Text = value;
+            get { return txtUsername.Text; }
+            set { txtUsername.Text = value ?? string.Empty; }
         }
 
         public string Password
         {
-            get => _txtPassword.Text;
-            set => _txtPassword.Text = value;
+            get { return txtPassword.Text; }
+            set { txtPassword.Text = value ?? string.Empty; }
         }
 
         private void InitializeComponent()
@@ -50,117 +41,73 @@ namespace EmailApp.Controls
             var card = new Panel
             {
                 BackColor = Color.White,
-                Size = new Size(400, 350),
+                Size = new Size(400, 320),
                 Anchor = AnchorStyles.None,
-                Location = new Point((Width - 400) / 2, (Height - 350) / 2)
+                BorderStyle = BorderStyle.FixedSingle
             };
-            card.BorderStyle = BorderStyle.FixedSingle;
-            card.Resize += (_, _) => CenterCard(card);
-            Resize += (_, _) => CenterCard(card);
+            Resize += delegate { CenterCard(card); };
 
             var title = new Label
             {
                 Text = "Login",
-                Font = new Font("Segoe UI", 20, FontStyle.Bold),
+                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(26, 26, 46),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Location = new Point(32, 32),
                 Size = new Size(336, 42)
             };
 
-            var subtitle = new Label
-            {
-                Text = "Masuk ke CIP Station",
-                Font = new Font("Segoe UI", 10),
-                ForeColor = Color.FromArgb(95, 99, 104),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Location = new Point(32, 74),
-                Size = new Size(336, 24)
-            };
+            txtUsername.Location = new Point(48, 115);
+            txtUsername.Size = new Size(304, 26);
+            txtUsername.Font = new Font("Segoe UI", 10F);
 
-            _txtUsername.Location = new Point(48, 130);
-            _txtUsername.Size = new Size(304, 31);
-            _txtUsername.Font = new Font("Segoe UI", 11);
-            _txtUsername.PlaceholderText = "Username";
+            txtPassword.Location = new Point(48, 160);
+            txtPassword.Size = new Size(240, 26);
+            txtPassword.Font = new Font("Segoe UI", 10F);
+            txtPassword.UseSystemPasswordChar = true;
 
-            _txtPassword.Location = new Point(48, 180);
-            _txtPassword.Size = new Size(260, 31);
-            _txtPassword.Font = new Font("Segoe UI", 11);
-            _txtPassword.PlaceholderText = "Password";
-            _txtPassword.UseSystemPasswordChar = true;
-
-            var btnShowPassword = new Button
+            var showButton = new Button
             {
                 Text = "Show",
-                Location = new Point(314, 180),
-                Size = new Size(38, 31),
+                Location = new Point(296, 159),
+                Size = new Size(56, 28),
                 FlatStyle = FlatStyle.Flat
             };
-            btnShowPassword.Click += (_, _) => TogglePassword();
+            showButton.Click += delegate { TogglePassword(); };
 
-            _btnLogin.Text = "Login";
-            _btnLogin.Location = new Point(48, 238);
-            _btnLogin.Size = new Size(304, 42);
-            _btnLogin.BackColor = Color.FromArgb(26, 115, 232);
-            _btnLogin.ForeColor = Color.White;
-            _btnLogin.FlatStyle = FlatStyle.Flat;
-            _btnLogin.Font = new Font("Segoe UI", 11, FontStyle.Bold);
-            _btnLogin.Click += async (_, _) => await LoginAsync();
+            var loginButton = new Button
+            {
+                Text = "Login",
+                Location = new Point(48, 215),
+                Size = new Size(304, 40),
+                BackColor = Color.FromArgb(26, 115, 232),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+            };
+            loginButton.Click += delegate { RaiseLoginSucceeded(); };
 
-            _lblMessage.Location = new Point(48, 292);
-            _lblMessage.Size = new Size(304, 40);
-            _lblMessage.ForeColor = Color.FromArgb(229, 57, 53);
-            _lblMessage.Font = new Font("Segoe UI", 9);
-            _lblMessage.TextAlign = ContentAlignment.MiddleCenter;
+            lblMessage.Location = new Point(48, 265);
+            lblMessage.Size = new Size(304, 28);
+            lblMessage.ForeColor = Color.FromArgb(95, 99, 104);
+            lblMessage.TextAlign = ContentAlignment.MiddleCenter;
+            lblMessage.Text = "Client control login placeholder";
 
-            card.Controls.AddRange([title, subtitle, _txtUsername, _txtPassword, btnShowPassword, _btnLogin, _lblMessage]);
+            card.Controls.AddRange(new Control[] { title, txtUsername, txtPassword, showButton, loginButton, lblMessage });
             Controls.Add(card);
             CenterCard(card);
         }
 
-        private async Task LoginAsync()
+        private void RaiseLoginSucceeded()
         {
-            _lblMessage.Text = string.Empty;
-
-            if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password))
-            {
-                _lblMessage.Text = "Username dan password wajib diisi";
-                return;
-            }
-
-            _btnLogin.Enabled = false;
-
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-                await using var db = await dbFactory.CreateDbContextAsync();
-
-                var user = await db.Users.FirstOrDefaultAsync(item => item.Username == Username.Trim());
-
-                if (user == null || !BCrypt.Net.BCrypt.Verify(Password, user.Password))
-                {
-                    _lblMessage.Text = "Username atau password salah";
-                    return;
-                }
-
-                CurrentUser = user;
-                LoginSucceeded?.Invoke(this, EventArgs.Empty);
-            }
-            catch (Exception ex)
-            {
-                _lblMessage.Text = ex.Message;
-            }
-            finally
-            {
-                _btnLogin.Enabled = true;
-            }
+            if (LoginSucceeded != null)
+                LoginSucceeded(this, EventArgs.Empty);
         }
 
         private void TogglePassword()
         {
-            _showPassword = !_showPassword;
-            _txtPassword.UseSystemPasswordChar = !_showPassword;
+            showPassword = !showPassword;
+            txtPassword.UseSystemPasswordChar = !showPassword;
         }
 
         private void CenterCard(Control card)
@@ -168,7 +115,5 @@ namespace EmailApp.Controls
             card.Left = Math.Max(0, (ClientSize.Width - card.Width) / 2);
             card.Top = Math.Max(0, (ClientSize.Height - card.Height) / 2);
         }
-
-        public User? CurrentUser { get; private set; }
     }
 }

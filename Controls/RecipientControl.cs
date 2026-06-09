@@ -1,7 +1,6 @@
-using EmailApp.Desktop;
-using EmailApp.Models;
-using EmailApp.Services;
-using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -9,117 +8,253 @@ namespace EmailApp.Controls
 {
     public class RecipientControl : UserControl
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly DataGridView _gridEmails = new();
-        private readonly DataGridView _gridGroups = new();
-        private readonly TextBox _txtEmail = new();
-        private readonly ComboBox _cmbGroup = new();
-        private readonly TextBox _txtGroup = new();
-        private readonly Label _lblStatus = new();
-        private List<EmailGroup> _groups = new();
-        private List<Email> _emails = new();
+        private readonly TextBox txtConnectionString;
+        private readonly TextBox txtEmail;
+        private readonly TextBox txtGroup;
+        private readonly ComboBox cmbGroup;
+        private readonly DataGridView gridEmails;
+        private readonly DataGridView gridGroups;
+        private readonly Label lblStatus;
 
         public RecipientControl()
-            : this(DesktopServiceProviderFactory.Services)
         {
+            txtConnectionString = new TextBox();
+            txtEmail = new TextBox();
+            txtGroup = new TextBox();
+            cmbGroup = new ComboBox();
+            gridEmails = new DataGridView();
+            gridGroups = new DataGridView();
+            lblStatus = new Label();
+            ConnectionString = "Server=localhost;Database=EmailDB;Trusted_Connection=True;TrustServerCertificate=True";
+            InitializeComponent();
         }
 
-        public RecipientControl(IServiceProvider serviceProvider)
+        public string ConnectionString
         {
-            _serviceProvider = serviceProvider;
-            InitializeComponent();
-            _ = LoadDataAsync();
+            get { return txtConnectionString.Text; }
+            set { txtConnectionString.Text = value ?? string.Empty; }
         }
 
         private void InitializeComponent()
         {
             BackColor = Color.FromArgb(248, 250, 252);
-            Padding = new Padding(24);
+            Padding = new Padding(16);
 
             var title = new Label
             {
                 Text = "Recipients",
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(13, 27, 42),
-                Location = new Point(24, 24),
-                Size = new Size(300, 32)
+                Location = new Point(16, 14),
+                Size = new Size(220, 30)
             };
 
-            var emailPanel = new Panel
+            var connectionLabel = CreateLabel("Connection String", 16, 56, 140);
+            txtConnectionString.Location = new Point(160, 53);
+            txtConnectionString.Size = new Size(620, 24);
+            txtConnectionString.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            var loadButton = CreateButton("Load", 790, 52, 80);
+            loadButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            loadButton.Click += delegate { LoadData(); };
+
+            var emailLabel = CreateLabel("Email", 16, 100, 80);
+            txtEmail.Location = new Point(90, 96);
+            txtEmail.Size = new Size(250, 24);
+
+            cmbGroup.Location = new Point(350, 96);
+            cmbGroup.Size = new Size(210, 24);
+            cmbGroup.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            var addEmailButton = CreateButton("Add Email", 570, 94, 100);
+            addEmailButton.Click += delegate { AddEmail(); };
+
+            var groupLabel = CreateLabel("Group", 16, 138, 80);
+            txtGroup.Location = new Point(90, 134);
+            txtGroup.Size = new Size(250, 24);
+
+            var addGroupButton = CreateButton("Add Group", 350, 132, 100);
+            addGroupButton.Click += delegate { AddGroup(); };
+
+            ConfigureGrid(gridEmails);
+            gridEmails.Location = new Point(16, 185);
+            gridEmails.Size = new Size(610, 320);
+            gridEmails.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+
+            ConfigureGrid(gridGroups);
+            gridGroups.Location = new Point(640, 185);
+            gridGroups.Size = new Size(230, 320);
+            gridGroups.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+
+            var deleteEmailButton = CreateButton("Delete Email", 16, 518, 110);
+            deleteEmailButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+            deleteEmailButton.Click += delegate { DeleteSelectedEmail(); };
+
+            var deleteGroupButton = CreateButton("Delete Group", 640, 518, 110);
+            deleteGroupButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            deleteGroupButton.Click += delegate { DeleteSelectedGroup(); };
+
+            lblStatus.Location = new Point(140, 520);
+            lblStatus.Size = new Size(490, 26);
+            lblStatus.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            lblStatus.Font = new Font("Segoe UI", 9F);
+
+            Controls.AddRange(new Control[]
             {
-                Location = new Point(24, 90),
-                Size = new Size(820, 70),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-            };
+                title, connectionLabel, txtConnectionString, loadButton,
+                emailLabel, txtEmail, cmbGroup, addEmailButton,
+                groupLabel, txtGroup, addGroupButton,
+                gridEmails, gridGroups, deleteEmailButton, deleteGroupButton, lblStatus
+            });
 
-            _txtEmail.Location = new Point(0, 28);
-            _txtEmail.Size = new Size(300, 31);
-            _txtEmail.PlaceholderText = "Email address";
+            BindGroupOptions(new DataTable());
+        }
 
-            _cmbGroup.Location = new Point(315, 28);
-            _cmbGroup.Size = new Size(220, 31);
-            _cmbGroup.DropDownStyle = ComboBoxStyle.DropDownList;
-
-            var addEmailButton = new Button
+        private void LoadData()
+        {
+            try
             {
-                Text = "Add Email",
-                BackColor = Color.FromArgb(26, 115, 232),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(550, 28),
-                Size = new Size(110, 31)
-            };
-            addEmailButton.Click += async (_, _) => await AddEmailAsync();
+                using (var connection = new SqlConnection(ConnectionString))
+                {
+                    connection.Open();
 
-            emailPanel.Controls.AddRange([CreateLabel("Add Email", 0, 0), _txtEmail, _cmbGroup, addEmailButton]);
+                    var groups = Query(connection, "SELECT Id, Name FROM EmailGroups ORDER BY Name");
+                    var emails = Query(connection,
+                        "SELECT e.Id, e.Address, ISNULL(g.Name, '-') AS GroupName " +
+                        "FROM Emails e LEFT JOIN EmailGroups g ON g.Id = e.EmailGroupId ORDER BY e.Address");
 
-            var groupPanel = new Panel
+                    gridGroups.DataSource = groups;
+                    gridEmails.DataSource = emails;
+                    BindGroupOptions(groups);
+                }
+
+                SetStatus("Recipients loaded", true);
+            }
+            catch (Exception ex)
             {
-                Location = new Point(24, 175),
-                Size = new Size(820, 70),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-            };
+                SetStatus(ex.Message, false);
+            }
+        }
 
-            _txtGroup.Location = new Point(0, 28);
-            _txtGroup.Size = new Size(300, 31);
-            _txtGroup.PlaceholderText = "Group name";
-
-            var addGroupButton = new Button
+        private void AddEmail()
+        {
+            if (string.IsNullOrWhiteSpace(txtEmail.Text))
             {
-                Text = "Add Group",
-                BackColor = Color.FromArgb(26, 115, 232),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Location = new Point(315, 28),
-                Size = new Size(110, 31)
-            };
-            addGroupButton.Click += async (_, _) => await AddGroupAsync();
+                SetStatus("Email is required", false);
+                return;
+            }
 
-            groupPanel.Controls.AddRange([CreateLabel("Add Group", 0, 0), _txtGroup, addGroupButton]);
+            try
+            {
+                using (var connection = new SqlConnection(ConnectionString))
+                using (var command = new SqlCommand("INSERT INTO Emails (Id, Address, EmailGroupId) VALUES (@Id, @Address, @GroupId)", connection))
+                {
+                    command.Parameters.AddWithValue("@Id", Guid.NewGuid());
+                    command.Parameters.AddWithValue("@Address", txtEmail.Text.Trim());
+                    command.Parameters.AddWithValue("@GroupId", cmbGroup.SelectedValue ?? (object)DBNull.Value);
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
 
-            ConfigureGrid(_gridEmails);
-            _gridEmails.Location = new Point(24, 270);
-            _gridEmails.Size = new Size(640, 330);
-            _gridEmails.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            _gridEmails.Columns.Add("Address", "Email");
-            _gridEmails.Columns.Add("Group", "Group");
-            _gridEmails.Columns.Add(CreateButtonColumn("DeleteEmail", "Delete"));
-            _gridEmails.CellContentClick += async (_, e) => await DeleteEmailFromGridAsync(e);
+                txtEmail.Clear();
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex.Message, false);
+            }
+        }
 
-            ConfigureGrid(_gridGroups);
-            _gridGroups.Location = new Point(690, 270);
-            _gridGroups.Size = new Size(300, 330);
-            _gridGroups.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            _gridGroups.Columns.Add("Name", "Group");
-            _gridGroups.Columns.Add(CreateButtonColumn("DeleteGroup", "Delete"));
-            _gridGroups.CellContentClick += async (_, e) => await DeleteGroupFromGridAsync(e);
+        private void AddGroup()
+        {
+            if (string.IsNullOrWhiteSpace(txtGroup.Text))
+            {
+                SetStatus("Group is required", false);
+                return;
+            }
 
-            _lblStatus.Location = new Point(24, 615);
-            _lblStatus.Size = new Size(680, 32);
-            _lblStatus.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            _lblStatus.Font = new Font("Segoe UI", 9);
+            try
+            {
+                using (var connection = new SqlConnection(ConnectionString))
+                using (var command = new SqlCommand("INSERT INTO EmailGroups (Id, Name) VALUES (@Id, @Name)", connection))
+                {
+                    command.Parameters.AddWithValue("@Id", Guid.NewGuid());
+                    command.Parameters.AddWithValue("@Name", txtGroup.Text.Trim());
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
 
-            Controls.AddRange([title, emailPanel, groupPanel, _gridEmails, _gridGroups, _lblStatus]);
+                txtGroup.Clear();
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex.Message, false);
+            }
+        }
+
+        private void DeleteSelectedEmail()
+        {
+            DeleteSelectedRow(gridEmails, "Emails");
+        }
+
+        private void DeleteSelectedGroup()
+        {
+            DeleteSelectedRow(gridGroups, "EmailGroups");
+        }
+
+        private void DeleteSelectedRow(DataGridView grid, string tableName)
+        {
+            if (grid.CurrentRow == null || grid.CurrentRow.Cells["Id"].Value == null)
+            {
+                SetStatus("Select a row first", false);
+                return;
+            }
+
+            try
+            {
+                using (var connection = new SqlConnection(ConnectionString))
+                using (var command = new SqlCommand("DELETE FROM " + tableName + " WHERE Id=@Id", connection))
+                {
+                    command.Parameters.AddWithValue("@Id", grid.CurrentRow.Cells["Id"].Value);
+                    connection.Open();
+                    command.ExecuteNonQuery();
+                }
+
+                LoadData();
+            }
+            catch (Exception ex)
+            {
+                SetStatus(ex.Message, false);
+            }
+        }
+
+        private static DataTable Query(SqlConnection connection, string sql)
+        {
+            using (var adapter = new SqlDataAdapter(sql, connection))
+            {
+                var table = new DataTable();
+                adapter.Fill(table);
+                return table;
+            }
+        }
+
+        private void BindGroupOptions(DataTable groups)
+        {
+            var options = groups.Copy();
+            if (!options.Columns.Contains("Id"))
+                options.Columns.Add("Id", typeof(Guid));
+            if (!options.Columns.Contains("Name"))
+                options.Columns.Add("Name", typeof(string));
+
+            var row = options.NewRow();
+            row["Id"] = DBNull.Value;
+            row["Name"] = "-- No Group --";
+            options.Rows.InsertAt(row, 0);
+
+            cmbGroup.DataSource = options;
+            cmbGroup.ValueMember = "Id";
+            cmbGroup.DisplayMember = "Name";
         }
 
         private static void ConfigureGrid(DataGridView grid)
@@ -134,146 +269,32 @@ namespace EmailApp.Controls
             grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         }
 
-        private static DataGridViewButtonColumn CreateButtonColumn(string name, string text)
-        {
-            return new DataGridViewButtonColumn
-            {
-                Name = name,
-                HeaderText = string.Empty,
-                Text = text,
-                UseColumnTextForButtonValue = true,
-                Width = 80
-            };
-        }
-
-        private async Task LoadDataAsync()
-        {
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                var service = scope.ServiceProvider.GetRequiredService<IEmailRecipientService>();
-                _emails = (await service.GetEmailsAsync()).ToList();
-                _groups = (await service.GetGroupsAsync()).ToList();
-                BindData();
-                SetStatus("Recipients loaded", true);
-            }
-            catch (Exception ex)
-            {
-                SetStatus(ex.Message, false);
-            }
-        }
-
-        private void BindData()
-        {
-            _cmbGroup.Items.Clear();
-            _cmbGroup.Items.Add(new GroupOption(null, "-- No Group --"));
-            foreach (var group in _groups)
-                _cmbGroup.Items.Add(new GroupOption(group.Id, group.Name));
-            _cmbGroup.SelectedIndex = 0;
-
-            _gridEmails.Rows.Clear();
-            foreach (var email in _emails)
-            {
-                var groupName = _groups.FirstOrDefault(group => group.Id == email.EmailGroupId)?.Name ?? "-";
-                var index = _gridEmails.Rows.Add(email.Address, groupName);
-                _gridEmails.Rows[index].Tag = email;
-            }
-
-            _gridGroups.Rows.Clear();
-            foreach (var group in _groups)
-            {
-                var index = _gridGroups.Rows.Add(group.Name);
-                _gridGroups.Rows[index].Tag = group;
-            }
-        }
-
-        private async Task AddEmailAsync()
-        {
-            var selectedGroup = _cmbGroup.SelectedItem as GroupOption;
-            var email = new Email
-            {
-                Address = _txtEmail.Text,
-                EmailGroupId = selectedGroup?.Id
-            };
-
-            using var scope = _serviceProvider.CreateScope();
-            var service = scope.ServiceProvider.GetRequiredService<IEmailRecipientService>();
-            var result = await service.AddEmailAsync(email);
-
-            if (!result.Success)
-            {
-                SetStatus(result.ErrorMessage ?? "Failed to add email", false);
-                return;
-            }
-
-            _txtEmail.Clear();
-            await LoadDataAsync();
-        }
-
-        private async Task AddGroupAsync()
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var service = scope.ServiceProvider.GetRequiredService<IEmailRecipientService>();
-            var result = await service.AddGroupAsync(new EmailGroup { Name = _txtGroup.Text });
-
-            if (!result.Success)
-            {
-                SetStatus(result.ErrorMessage ?? "Failed to add group", false);
-                return;
-            }
-
-            _txtGroup.Clear();
-            await LoadDataAsync();
-        }
-
-        private async Task DeleteEmailFromGridAsync(DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0 || _gridEmails.Columns[e.ColumnIndex].Name != "DeleteEmail")
-                return;
-
-            if (_gridEmails.Rows[e.RowIndex].Tag is not Email email)
-                return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var service = scope.ServiceProvider.GetRequiredService<IEmailRecipientService>();
-            await service.DeleteEmailAsync(email.Id);
-            await LoadDataAsync();
-        }
-
-        private async Task DeleteGroupFromGridAsync(DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0 || _gridGroups.Columns[e.ColumnIndex].Name != "DeleteGroup")
-                return;
-
-            if (_gridGroups.Rows[e.RowIndex].Tag is not EmailGroup group)
-                return;
-
-            using var scope = _serviceProvider.CreateScope();
-            var service = scope.ServiceProvider.GetRequiredService<IEmailRecipientService>();
-            await service.DeleteGroupAsync(group.Id);
-            await LoadDataAsync();
-        }
-
-        private static Label CreateLabel(string text, int x, int y)
+        private static Label CreateLabel(string text, int x, int y, int width)
         {
             return new Label
             {
                 Text = text,
                 Location = new Point(x, y),
-                Size = new Size(180, 22),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+                Size = new Size(width, 24),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+        }
+
+        private static Button CreateButton(string text, int x, int y, int width)
+        {
+            return new Button
+            {
+                Text = text,
+                Location = new Point(x, y),
+                Size = new Size(width, 28),
+                FlatStyle = FlatStyle.Flat
             };
         }
 
         private void SetStatus(string message, bool success)
         {
-            _lblStatus.Text = message;
-            _lblStatus.ForeColor = success ? Color.FromArgb(21, 128, 61) : Color.FromArgb(229, 57, 53);
-        }
-
-        private sealed record GroupOption(Guid? Id, string Name)
-        {
-            public override string ToString() => Name;
+            lblStatus.Text = message;
+            lblStatus.ForeColor = success ? Color.FromArgb(21, 128, 61) : Color.FromArgb(229, 57, 53);
         }
     }
 }
